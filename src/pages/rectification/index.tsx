@@ -127,6 +127,25 @@ const RectificationPage: React.FC = () => {
 
               <Text className={styles.description}>{item.description}</Text>
 
+              {item.recheckResult && (
+                <View className={styles.recheckBox}>
+                  <View className={styles.recheckHeader}>
+                    <Text className={styles.recheckIcon}>🔎</Text>
+                    <Text className={styles.recheckLabel}>最近复查</Text>
+                    {item.recheckConclusion && (
+                      <Text className={classnames(styles.recheckTag, item.recheckConclusion === 'pass' ? styles.pass : styles.fail)}>
+                        {item.recheckConclusion === 'pass' ? '通过' : '不通过'}
+                      </Text>
+                    )}
+                  </View>
+                  <Text className={styles.recheckContent}>{item.recheckResult}</Text>
+                  <View className={styles.recheckMeta}>
+                    {item.rechecker && <Text>复查人：{item.rechecker}</Text>}
+                    {item.recheckTime && <Text>{formatDateTime(item.recheckTime, 'MM-DD HH:mm')}</Text>}
+                  </View>
+                </View>
+              )}
+
               {item.status !== 'completed' && item.status !== 'closed' && (
                 <View className={classnames(styles.deadline, !isDeadlineUrgent(item.deadline) && styles.normal)}>
                   <Text>⏰</Text>

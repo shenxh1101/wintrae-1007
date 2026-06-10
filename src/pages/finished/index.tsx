@@ -18,6 +18,11 @@ const filters: { key: FilterType; label: string }[] = [
   { key: 'unqualified', label: '不合格' }
 ];
 
+const getItemFinalQualified = (item: FinishedProductInspection['items'][number]): boolean => {
+  if (typeof item.isRecheckQualified === 'boolean') return item.isRecheckQualified;
+  return item.isQualified;
+};
+
 const FinishedPage: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const { finishedInspectionList } = useQualityStore();
@@ -25,9 +30,33 @@ const FinishedPage: React.FC = () => {
   useDidShow(() => {
   });
 
+  const computeStats = (inspection: FinishedProductInspection) => {
+    let qualified = 0;
+    const total = inspection.items.length;
+    let hasRecheck = false;
+    inspection.items.forEach(it => {
+      if (it.recheckResult) hasRecheck = true;
+      if (getItemFinalQualified(it)) qualified++;
+    });
+    return { qualified, total, allPass: qualified === total, hasRecheck };
+  };
+
+  const computeConclusion = (inspection: FinishedProductInspection): InspectionStatus => {
+    const finalItems = inspection.items.map(getItemFinalQualified);
+    const allPass = finalItems.every(x => x);
+    if (allPass) return 'qualified';
+    const anyFail = finalItems.some((ok, idx) => {
+      const it = inspection.items[idx];
+      return !ok && (it.result || it.recheckResult);
+    });
+    if (anyFail) return 'unqualified';
+    return 'pending';
+  };
+
   const filteredList = useMemo(() => {
-    if (activeFilter === 'all') return finishedInspectionList;
-    return finishedInspectionList.filter(item => item.conclusion === activeFilter);
+    const list = finishedInspectionList.map(it => ({ ...it, _conclusion: computeConclusion(it) }));
+    if (activeFilter === 'all') return list;
+    return list.filter(item => item._conclusion === activeFilter);
   }, [finishedInspectionList, activeFilter]);
 
   const getStatusType = (status: InspectionStatus): 'success' | 'warning' | 'error' | 'info' | 'gray' => {
@@ -40,10 +69,6 @@ const FinishedPage: React.FC = () => {
     return map[status];
   };
 
-  const getQualifiedCount = (items: { isQualified: boolean }[]) => {
-    return items.filter(i => i.isQualified).length;
-  };
-
   const handleAdd = () => {
     Taro.navigateTo({
       url: '/pages/finished-add/index'
@@ -54,6 +79,13 @@ const FinishedPage: React.FC = () => {
     console.log('[Finished] 查看成品抽检:', item.id);
     Taro.navigateTo({
       url: `/pages/trace/index?batchNo=${item.batchNo}`
+    });
+  };
+
+  const handleRecheck = (item: FinishedProductInspection, e: React.MouseEvent) => {
+    e.stopPropagation();
+    Taro.navigateTo({
+      url: `/pages/finished-recheck/index?id=${item.id}`
     });
   };
 
@@ -76,9 +108,9 @@ const FinishedPage: React.FC = () => {
       <ScrollView scrollY className={styles.listContainer}>
         {filteredList.length > 0 ? (
           filteredList.map(item => {
-            const qualified = getQualifiedCount(item.items);
-            const total = item.items.length;
-            const isAllPass = qualified === total;
+            const { qualified, total, allPass, hasRecheck } = computeStats(item);
+            const conclusion = computeConclusion(item);
+            const needRecheck = !allPass;
             return (
               <View
                 key={item.id}
@@ -88,8 +120,8 @@ const FinishedPage: React.FC = () => {
                 <View className={styles.cardHeader}>
                   <Text className={styles.title}>{item.productName}</Text>
                   <StatusTag
-                    text={getInspectionStatusText(item.conclusion)}
-                    type={getStatusType(item.conclusion)}
+                    text={getInspectionStatusText(conclusion)}
+                    type={getStatusType(conclusion)}
                   />
                 </View>
 
@@ -100,15 +132,22 @@ const FinishedPage: React.FC = () => {
                     <Text className={styles.num}>{item.sampleCount}</Text>
                     <Text className={styles.label}>抽检数量</Text>
                   </View>
-                  <View className={classnames(styles.item, isAllPass ? styles.success : styles.error)}>
+                  <View className={classnames(styles.item, allPass ? styles.success : styles.error)}>
                     <Text className={styles.num}>{qualified}/{total}</Text>
-                    <Text className={styles.label}>合格项数</Text>
+                    <Text className={styles.label}>合格项数{hasRecheck ? '（含复检）' : ''}</Text>
                   </View>
                 </View>
 
                 <View className={styles.cardFooter}>
                   <Text>🔬 检验：{item.inspector}</Text>
-                  <Text>{formatDateTime(item.inspectionTime, 'MM-DD HH:mm')}</Text>
+                  <View style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                    <Text>{formatDateTime(item.inspectionTime, 'MM-DD HH:mm')}</Text>
+                    {needRecheck && (
+                      <Button className={styles.recheckBtn} onClick={(e) => handleRecheck(item, e)}>
+                        去复检
+                      </Button>
+                    )}
+                  </View>
                 </View>
               </View>
             );

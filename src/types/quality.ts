@@ -63,6 +63,10 @@ export interface FinishedProductInspection {
     unit?: string;
     method?: string;
     isQualified: boolean;
+    recheckResult?: string;
+    recheckTime?: string;
+    rechecker?: string;
+    isRecheckQualified?: boolean;
   }[];
   conclusion: InspectionStatus;
   remark: string;

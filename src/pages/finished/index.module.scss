@@ -140,6 +140,21 @@
   color: $color-text-tertiary;
 }
 
+.recheckBtn {
+  @include button-reset;
+  height: 48rpx;
+  padding: 0 20rpx;
+  border-radius: $radius-xs;
+  font-size: $font-size-xs;
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+  color: $color-text-white;
+  font-weight: $font-weight-medium;
+
+  &:active {
+    opacity: 0.85;
+  }
+}
+
 .fab {
   position: fixed;
   right: $spacing-lg;

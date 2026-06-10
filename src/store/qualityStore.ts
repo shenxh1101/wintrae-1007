@@ -25,6 +25,7 @@ interface QualityState {
   addAcceptance: (data: Omit<RawMaterialAcceptance, 'id' | 'inspectionTime'>) => void;
   addProcessInspection: (data: Omit<ProcessInspection, 'id' | 'inspectionTime'>) => void;
   addFinishedInspection: (data: Omit<FinishedProductInspection, 'id' | 'inspectionTime'>) => void;
+  updateFinishedInspection: (id: string, patch: Partial<FinishedProductInspection> & { items?: FinishedProductInspection['items'] }) => void;
   addRectification: (data: Omit<RectificationOrder, 'id' | 'orderNo' | 'createTime' | 'status' | 'createdAt'>) => void;
   updateRectificationStatus: (id: string, status: RectificationStatus, extra?: Partial<RectificationOrder>) => void;
   getRectificationById: (id: string) => RectificationOrder | undefined;
@@ -124,6 +125,17 @@ export const useQualityStore = create<QualityState>((set, get) => ({
     }));
     const productName = productNames[data.batchNo] || data.productName;
     get().addScanRecord(data.batchNo, productName);
+  },
+
+  updateFinishedInspection: (id, patch) => {
+    set(state => ({
+      finishedInspectionList: state.finishedInspectionList.map(item => {
+        if (item.id === id) {
+          return { ...item, ...patch };
+        }
+        return item;
+      })
+    }));
   },
 
   addRectification: (data) => {

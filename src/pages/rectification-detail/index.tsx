@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { View, Text, Image, ScrollView, Button, Textarea } from '@tarojs/components';
+import { View, Text, Image, ScrollView, Button, Textarea, Input } from '@tarojs/components';
 import Taro, { useRouter, useDidShow } from '@tarojs/taro';
 import classnames from 'classnames';
 import styles from './index.module.scss';
@@ -30,6 +30,7 @@ const RectificationDetailPage: React.FC = () => {
   const [processContent, setProcessContent] = useState('');
   const [recheckContent, setRecheckContent] = useState('');
   const [recheckResult, setRecheckResult] = useState<'pass' | 'fail' | ''>('');
+  const [rechecker, setRechecker] = useState('李质检');
 
   const actionApplied = useRef(false);
 
@@ -200,18 +201,24 @@ const RectificationDetailPage: React.FC = () => {
       Taro.showToast({ title: '请填写复查意见', icon: 'none' });
       return;
     }
+    if (!rechecker.trim()) {
+      Taro.showToast({ title: '请填写复查人', icon: 'none' });
+      return;
+    }
 
     if (recheckResult === 'pass') {
       updateRectificationStatus(id, 'completed', {
-        recheckResult: '复查通过：' + recheckContent.trim(),
+        recheckResult: recheckContent.trim(),
         recheckTime: new Date().toISOString(),
+        rechecker: rechecker.trim(),
         recheckConclusion: 'pass'
       });
       Taro.showToast({ title: '复查通过，整改完成', icon: 'success' });
     } else {
       updateRectificationStatus(id, 'processing', {
-        recheckResult: '复查不通过：' + recheckContent.trim(),
+        recheckResult: recheckContent.trim(),
         recheckTime: new Date().toISOString(),
+        rechecker: rechecker.trim(),
         recheckConclusion: 'fail'
       });
       Taro.showToast({ title: '已退回整改', icon: 'none' });
@@ -338,6 +345,40 @@ const RectificationDetailPage: React.FC = () => {
           </View>
         </View>
 
+        {order.recheckResult && (
+          <View className={styles.card}>
+            <View className={styles.cardTitle}>
+              <Text className={styles.icon}>🔎</Text>
+              <Text>复查信息</Text>
+              {order.recheckConclusion && (
+                <StatusTag
+                  text={order.recheckConclusion === 'pass' ? '复查通过' : '复查不通过'}
+                  type={order.recheckConclusion === 'pass' ? 'success' : 'error'}
+                  style={{ marginLeft: 'auto' }}
+                />
+              )}
+            </View>
+            <View className={styles.infoList}>
+              {order.rechecker && (
+                <View className={styles.infoRow}>
+                  <Text className={styles.label}>复查人</Text>
+                  <Text className={styles.value}>{order.rechecker}</Text>
+                </View>
+              )}
+              {order.recheckTime && (
+                <View className={styles.infoRow}>
+                  <Text className={styles.label}>复查时间</Text>
+                  <Text className={styles.value}>{formatDateTime(order.recheckTime)}</Text>
+                </View>
+              )}
+              <View className={styles.infoRow}>
+                <Text className={styles.label}>复查意见</Text>
+                <Text className={styles.value} style={{ whiteSpace: 'pre-wrap' }}>{order.recheckResult}</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
         <View className={styles.card}>
           <View className={styles.cardTitle}>
             <Text className={styles.icon}>📝</Text>
@@ -413,6 +454,13 @@ const RectificationDetailPage: React.FC = () => {
                 <Text className={styles.text}>退回整改</Text>
               </View>
             </View>
+            <Text className={styles.formLabel}>复查人</Text>
+            <Input
+              className={styles.input}
+              placeholder="请输入复查人姓名"
+              value={rechecker}
+              onInput={(e) => setRechecker(e.detail.value)}
+            />
             <Text className={styles.formLabel}>复查意见</Text>
             <Textarea
               className={styles.textarea}

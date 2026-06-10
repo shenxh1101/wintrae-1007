@@ -9,6 +9,7 @@ export default defineAppConfig({
     'pages/acceptance-add/index',
     'pages/process-add/index',
     'pages/finished-add/index',
+    'pages/finished-recheck/index',
     'pages/rectification-add/index',
     'pages/rectification-detail/index'
   ],

@@ -155,6 +155,64 @@
   @include text-ellipsis-multi(2);
 }
 
+.recheckBox {
+  background-color: rgba(22, 93, 255, 0.06);
+  border-radius: $radius-md;
+  padding: $spacing-md;
+  margin-bottom: $spacing-md;
+  border-left: 6rpx solid $color-info;
+}
+
+.recheckHeader {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  margin-bottom: $spacing-xs;
+}
+
+.recheckIcon {
+  font-size: $font-size-sm;
+}
+
+.recheckLabel {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.recheckTag {
+  margin-left: auto;
+  padding: 2rpx $spacing-sm;
+  border-radius: $radius-xs;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+
+  &.pass {
+    color: $color-success;
+    background-color: rgba(0, 180, 42, 0.12);
+  }
+
+  &.fail {
+    color: $color-error;
+    background-color: rgba(245, 63, 63, 0.12);
+  }
+}
+
+.recheckContent {
+  font-size: $font-size-sm;
+  color: $color-text-primary;
+  line-height: 1.6;
+  margin-bottom: $spacing-xs;
+  @include text-ellipsis-multi(3);
+}
+
+.recheckMeta {
+  display: flex;
+  justify-content: space-between;
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
 .deadline {
   display: flex;
   align-items: center;
