@@ -1,22 +1,42 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Input, Button, Image, ScrollView } from '@tarojs/components';
-import Taro from '@tarojs/taro';
+import Taro, { useRouter, useDidShow } from '@tarojs/taro';
 import classnames from 'classnames';
 import styles from './index.module.scss';
-import { mockTraceInfo, mockScanRecords } from '@/data/trace';
-import type { TraceInfo, InspectionStatus } from '@/types/quality';
+import { useQualityStore } from '@/store/qualityStore';
+import type { InspectionStatus } from '@/types/quality';
 import { formatDate, formatDateTime, getInspectionStatusText } from '@/utils/format';
 import StatusTag from '@/components/StatusTag';
 import EmptyState from '@/components/EmptyState';
 
-type ExpandedStage = 'material' | 'process' | 'finished' | 'packaging' | 'outbound' | null;
+type ExpandedStage = 'material' | 'process' | 'finished' | 'rectification' | null;
 
 const TracePage: React.FC = () => {
-  const [batchNo, setBatchNo] = useState('');
-  const [traceInfo, setTraceInfo] = useState<TraceInfo | null>(null);
+  const router = useRouter();
+  const [batchNo, setBatchNo] = useState(router.params.batchNo || '');
+  const [traceInfo, setTraceInfo] = useState<any>(null);
   const [expandedStage, setExpandedStage] = useState<ExpandedStage>('material');
+  const { getTraceInfo, addScanRecord } = useQualityStore();
 
-  const quickBatches = mockScanRecords.slice(0, 4).map(r => r.batchNo);
+  const loadTraceInfo = (batch: string) => {
+    if (!batch.trim()) return;
+    Taro.showLoading({ title: '查询中...' });
+    setTimeout(() => {
+      const info = getTraceInfo(batch.trim());
+      setTraceInfo(info);
+      setExpandedStage('material');
+      if (info) {
+        addScanRecord(batch.trim(), info.productName);
+      }
+      Taro.hideLoading();
+    }, 300);
+  };
+
+  useEffect(() => {
+    if (router.params.batchNo) {
+      loadTraceInfo(router.params.batchNo);
+    }
+  }, [router.params.batchNo]);
 
   const handleSearch = () => {
     if (!batchNo.trim()) {
@@ -26,22 +46,7 @@ const TracePage: React.FC = () => {
       });
       return;
     }
-    Taro.showLoading({ title: '查询中...' });
-    setTimeout(() => {
-      setTraceInfo(mockTraceInfo);
-      setExpandedStage('material');
-      Taro.hideLoading();
-    }, 500);
-  };
-
-  const handleQuickSearch = (batch: string) => {
-    setBatchNo(batch);
-    Taro.showLoading({ title: '查询中...' });
-    setTimeout(() => {
-      setTraceInfo(mockTraceInfo);
-      setExpandedStage('material');
-      Taro.hideLoading();
-    }, 500);
+    loadTraceInfo(batchNo);
   };
 
   const toggleStage = (stage: ExpandedStage) => {
@@ -58,16 +63,36 @@ const TracePage: React.FC = () => {
     return map[status];
   };
 
-  const getOverallStatus = (): 'success' | 'warning' | 'error' | 'info' => {
-    if (!traceInfo) return 'info';
-    if (traceInfo.finishedInspection?.conclusion === 'qualified') return 'success';
-    if (traceInfo.finishedInspection?.conclusion === 'unqualified') return 'error';
-    if (traceInfo.processInspections.some(p => p.conclusion === 'unqualified')) return 'warning';
-    return 'info';
+  const goToAddAcceptance = () => {
+    Taro.navigateTo({
+      url: `/pages/acceptance-add/index?batchNo=${batchNo}`
+    });
   };
 
-  const hasUnqualifiedProcess = traceInfo?.processInspections.some(p => p.conclusion === 'unqualified');
-  const hasRecheckProcess = traceInfo?.processInspections.some(p => p.conclusion === 'recheck');
+  const goToAddProcess = () => {
+    Taro.navigateTo({
+      url: `/pages/process-add/index?batchNo=${batchNo}`
+    });
+  };
+
+  const goToAddFinished = () => {
+    Taro.navigateTo({
+      url: `/pages/finished-add/index?batchNo=${batchNo}`
+    });
+  };
+
+  const goToAddRectification = () => {
+    Taro.navigateTo({
+      url: `/pages/rectification-add/index?batchNo=${batchNo}`
+    });
+  };
+
+  const hasUnqualifiedProcess = traceInfo?.processInspections?.some(
+    (p: any) => p.conclusion === 'unqualified'
+  );
+  const hasRecheckProcess = traceInfo?.processInspections?.some(
+    (p: any) => p.conclusion === 'recheck'
+  );
 
   return (
     <View className={styles.page}>
@@ -82,14 +107,6 @@ const TracePage: React.FC = () => {
             onConfirm={handleSearch}
           />
           <Button className={styles.btn} onClick={handleSearch}>查询</Button>
-        </View>
-        <View className={styles.quickSearch}>
-          <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: '24rpx' }}>快捷查询：</Text>
-          {quickBatches.map((batch, idx) => (
-            <View key={idx} className={styles.chip} onClick={() => handleQuickSearch(batch)}>
-              {batch}
-            </View>
-          ))}
         </View>
       </View>
 
@@ -114,81 +131,99 @@ const TracePage: React.FC = () => {
                 </View>
                 <View className={styles.infoItem}>
                   <Text className={styles.label}>数量</Text>
-                  <Text className={styles.value}>{traceInfo.quantity}</Text>
+                  <Text className={styles.value}>{traceInfo.quantity || '-'}</Text>
                 </View>
               </View>
             </View>
 
             <View className={styles.timeline}>
               <View className={styles.timelineItem}>
-                <View className={classnames(styles.dot, styles.success)}></View>
+                <View
+                  className={classnames(
+                    styles.dot,
+                    traceInfo.rawMaterials?.length > 0
+                      ? traceInfo.rawMaterials.every((m: any) => m.conclusion === 'qualified')
+                        ? styles.success
+                        : styles.warning
+                      : styles.info
+                  )}
+                ></View>
                 <View className={classnames(styles.stageCard, expandedStage === 'material' && styles.expanded)}>
                   <View className={styles.stageHeader} onClick={() => toggleStage('material')}>
                     <View className={styles.stageIcon}>📦</View>
                     <View className={styles.stageInfo}>
                       <Text className={styles.stageTitle}>原料验收</Text>
                       <Text className={styles.stageDesc}>
-                        {traceInfo.rawMaterials.length} 种原料 · 全部合格
+                        {traceInfo.rawMaterials?.length || 0} 种原料
+                        {traceInfo.rawMaterials?.length > 0 &&
+                          (traceInfo.rawMaterials.every((m: any) => m.conclusion === 'qualified')
+                            ? ' · 全部合格'
+                            : ' · 存在异常')}
                       </Text>
                     </View>
                     <Text className={classnames(styles.expandIcon, expandedStage === 'material' && styles.expanded)}>▼</Text>
                   </View>
                   {expandedStage === 'material' && (
                     <View className={styles.stageContent}>
-                      {traceInfo.rawMaterials.map((material, idx) => (
-                        <View key={idx} className={styles.contentSection}>
-                          <View className={styles.sectionTitle}>
-                            {material.materialName}（{material.materialSpec}）
-                          </View>
-                          <View className={styles.paramList}>
-                            <View className={styles.paramItem}>
-                              <Text className={styles.paramName}>供应商</Text>
-                              <Text className={styles.paramValue}>{material.supplier}</Text>
+                      {traceInfo.rawMaterials?.length > 0 ? (
+                        traceInfo.rawMaterials.map((material: any, idx: number) => (
+                          <View key={idx} className={styles.contentSection}>
+                            <View className={styles.sectionTitle}>
+                              {material.materialName}（{material.materialSpec}）
                             </View>
-                            <View className={styles.paramItem}>
-                              <Text className={styles.paramName}>到货时间</Text>
-                              <Text className={styles.paramValue}>{formatDateTime(material.arrivalTime)}</Text>
-                            </View>
-                            <View className={styles.paramItem}>
-                              <Text className={styles.paramName}>到货温度</Text>
-                              <Text className={styles.paramValue}>{material.arrivalTemp}℃</Text>
-                            </View>
-                            <View className={styles.paramItem}>
-                              <Text className={styles.paramName}>数量</Text>
-                              <Text className={styles.paramValue}>{material.quantity} {material.unit}</Text>
-                            </View>
-                            <View className={styles.paramItem}>
-                              <Text className={styles.paramName}>检验员</Text>
-                              <Text className={styles.paramValue}>{material.inspector}</Text>
-                            </View>
-                            <View className={styles.paramItem}>
-                              <Text className={styles.paramName}>检验结论</Text>
-                              <StatusTag
-                                text={getInspectionStatusText(material.conclusion)}
-                                type={getStatusType(material.conclusion)}
-                              />
-                            </View>
-                          </View>
-                          {material.photos.length > 0 && (
-                            <View style={{ marginTop: 24 }}>
-                              <View className={styles.sectionTitle}>验收照片</View>
-                              <View className={styles.photoList}>
-                                {material.photos.map((photo, pIdx) => (
-                                  <View key={pIdx} className={styles.photoItem}>
-                                    <Image src={photo} mode="aspectFill" />
-                                  </View>
-                                ))}
+                            <View className={styles.paramList}>
+                              <View className={styles.paramItem}>
+                                <Text className={styles.paramName}>供应商</Text>
+                                <Text className={styles.paramValue}>{material.supplier}</Text>
+                              </View>
+                              <View className={styles.paramItem}>
+                                <Text className={styles.paramName}>到货时间</Text>
+                                <Text className={styles.paramValue}>{formatDateTime(material.arrivalTime)}</Text>
+                              </View>
+                              <View className={styles.paramItem}>
+                                <Text className={styles.paramName}>到货温度</Text>
+                                <Text className={styles.paramValue}>{material.arrivalTemp}℃</Text>
+                              </View>
+                              <View className={styles.paramItem}>
+                                <Text className={styles.paramName}>数量</Text>
+                                <Text className={styles.paramValue}>{material.quantity} {material.unit}</Text>
+                              </View>
+                              <View className={styles.paramItem}>
+                                <Text className={styles.paramName}>检验员</Text>
+                                <Text className={styles.paramValue}>{material.inspector}</Text>
+                              </View>
+                              <View className={styles.paramItem}>
+                                <Text className={styles.paramName}>检验结论</Text>
+                                <StatusTag
+                                  text={getInspectionStatusText(material.conclusion)}
+                                  type={getStatusType(material.conclusion)}
+                                />
                               </View>
                             </View>
-                          )}
-                          {material.remark && (
-                            <View style={{ marginTop: 16 }}>
-                              <View className={styles.sectionTitle}>备注</View>
-                              <Text style={{ fontSize: 24, color: '#4E5969' }}>{material.remark}</Text>
-                            </View>
-                          )}
+                            {material.photos?.length > 0 && (
+                              <View style={{ marginTop: 24 }}>
+                                <View className={styles.sectionTitle}>验收照片</View>
+                                <View className={styles.photoList}>
+                                  {material.photos.map((photo: string, pIdx: number) => (
+                                    <View key={pIdx} className={styles.photoItem}>
+                                      <Image src={photo} mode="aspectFill" />
+                                    </View>
+                                  ))}
+                                </View>
+                              </View>
+                            )}
+                            {material.remark && (
+                              <View style={{ marginTop: 12 }}>
+                                <Text style={{ fontSize: 24, color: '#4E5969' }}>备注：{material.remark}</Text>
+                              </View>
+                            )}
+                          </View>
+                        ))
+                      ) : (
+                        <View className={styles.addEntry} onClick={goToAddAcceptance}>
+                          + 新增原料验收记录
                         </View>
-                      ))}
+                      )}
                     </View>
                   )}
                 </View>
@@ -198,75 +233,92 @@ const TracePage: React.FC = () => {
                 <View
                   className={classnames(
                     styles.dot,
-                    hasUnqualifiedProcess ? styles.error : hasRecheckProcess ? styles.warning : styles.success
+                    traceInfo.processInspections?.length > 0
+                      ? hasUnqualifiedProcess
+                        ? styles.error
+                        : hasRecheckProcess
+                          ? styles.warning
+                          : styles.success
+                      : styles.info
                   )}
                 ></View>
                 <View className={classnames(styles.stageCard, expandedStage === 'process' && styles.expanded)}>
                   <View className={styles.stageHeader} onClick={() => toggleStage('process')}>
-                    <View className={styles.stageIcon}>🔬</View>
+                    <View className={styles.stageIcon}>🔧</View>
                     <View className={styles.stageInfo}>
                       <Text className={styles.stageTitle}>过程检查</Text>
                       <Text className={styles.stageDesc}>
-                        {traceInfo.processInspections.length} 道工序 · 
-                        {hasUnqualifiedProcess ? ' 存在不合格' : hasRecheckProcess ? ' 待复检' : ' 全部合格'}
+                        {traceInfo.processInspections?.length || 0} 道工序
+                        {traceInfo.processInspections?.length > 0 &&
+                          (hasUnqualifiedProcess
+                            ? ' · 存在不合格'
+                            : hasRecheckProcess
+                              ? ' · 待复检'
+                              : ' · 全部合格')}
                       </Text>
                     </View>
                     <Text className={classnames(styles.expandIcon, expandedStage === 'process' && styles.expanded)}>▼</Text>
                   </View>
                   {expandedStage === 'process' && (
                     <View className={styles.stageContent}>
-                      {traceInfo.processInspections.map((proc, idx) => (
-                        <View key={idx} className={styles.contentSection}>
-                          <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                            <View className={styles.sectionTitle} style={{ marginBottom: 0 }}>
-                              工序{proc.processIndex}：{proc.processName}
+                      {traceInfo.processInspections?.length > 0 ? (
+                        traceInfo.processInspections.map((proc: any, idx: number) => (
+                          <View key={idx} className={styles.contentSection}>
+                            <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                              <View className={styles.sectionTitle} style={{ marginBottom: 0 }}>
+                                工序{proc.processIndex}：{proc.processName}
+                              </View>
+                              <StatusTag
+                                text={getInspectionStatusText(proc.conclusion)}
+                                type={getStatusType(proc.conclusion)}
+                              />
                             </View>
-                            <StatusTag
-                              text={getInspectionStatusText(proc.conclusion)}
-                              type={getStatusType(proc.conclusion)}
-                            />
-                          </View>
-                          <View className={styles.paramList}>
-                            <View className={styles.paramItem}>
-                              <Text className={styles.paramName}>操作人员</Text>
-                              <Text className={styles.paramValue}>{proc.operator}</Text>
-                            </View>
-                            <View className={styles.paramItem}>
-                              <Text className={styles.paramName}>检验员</Text>
-                              <Text className={styles.paramValue}>{proc.inspector}</Text>
-                            </View>
-                            <View className={styles.paramItem}>
-                              <Text className={styles.paramName}>检验时间</Text>
-                              <Text className={styles.paramValue}>{formatDateTime(proc.inspectionTime)}</Text>
-                            </View>
-                          </View>
-                          <View style={{ marginTop: 16 }}>
-                            <View className={styles.sectionTitle}>关键参数</View>
                             <View className={styles.paramList}>
-                              {proc.parameters.map((param, pIdx) => (
-                                <View key={pIdx} className={styles.paramItem}>
-                                  <Text className={styles.paramName}>{param.name}</Text>
-                                  <View style={{ textAlign: 'right' }}>
-                                    <Text
-                                      className={classnames(styles.paramValue, !param.isQualified && styles.fail)}
-                                    >
-                                      {param.value}{param.unit}
-                                    </Text>
-                                    <Text style={{ fontSize: 20, color: '#86909C' }}>
-                                      标准：{param.standard}
-                                    </Text>
+                              <View className={styles.paramItem}>
+                                <Text className={styles.paramName}>操作人员</Text>
+                                <Text className={styles.paramValue}>{proc.operator}</Text>
+                              </View>
+                              <View className={styles.paramItem}>
+                                <Text className={styles.paramName}>检验员</Text>
+                                <Text className={styles.paramValue}>{proc.inspector}</Text>
+                              </View>
+                              <View className={styles.paramItem}>
+                                <Text className={styles.paramName}>检验时间</Text>
+                                <Text className={styles.paramValue}>{formatDateTime(proc.inspectionTime)}</Text>
+                              </View>
+                            </View>
+                            <View style={{ marginTop: 16 }}>
+                              <View className={styles.sectionTitle}>关键参数</View>
+                              <View className={styles.paramList}>
+                                {proc.parameters?.map((param: any, pIdx: number) => (
+                                  <View key={pIdx} className={styles.paramItem}>
+                                    <Text className={styles.paramName}>{param.name}</Text>
+                                    <View style={{ textAlign: 'right' }}>
+                                      <Text
+                                        className={classnames(styles.paramValue, !param.isQualified && styles.fail)}
+                                      >
+                                        {param.value}{param.unit}
+                                      </Text>
+                                      <Text style={{ fontSize: 20, color: '#86909C' }}>
+                                        标准：{param.standard}
+                                      </Text>
+                                    </View>
                                   </View>
-                                </View>
-                              ))}
+                                ))}
+                              </View>
                             </View>
+                            {proc.remark && (
+                              <View style={{ marginTop: 12 }}>
+                                <Text style={{ fontSize: 24, color: '#4E5969' }}>备注：{proc.remark}</Text>
+                              </View>
+                            )}
                           </View>
-                          {proc.remark && (
-                            <View style={{ marginTop: 12 }}>
-                              <Text style={{ fontSize: 24, color: '#4E5969' }}>备注：{proc.remark}</Text>
-                            </View>
-                          )}
+                        ))
+                      ) : (
+                        <View className={styles.addEntry} onClick={goToAddProcess}>
+                          + 新增过程检查记录
                         </View>
-                      ))}
+                      )}
                     </View>
                   )}
                 </View>
@@ -276,11 +328,13 @@ const TracePage: React.FC = () => {
                 <View
                   className={classnames(
                     styles.dot,
-                    traceInfo.finishedInspection?.conclusion === 'qualified'
-                      ? styles.success
-                      : traceInfo.finishedInspection?.conclusion === 'unqualified'
-                        ? styles.error
-                        : styles.info
+                    traceInfo.finishedInspection
+                      ? traceInfo.finishedInspection.conclusion === 'qualified'
+                        ? styles.success
+                        : traceInfo.finishedInspection.conclusion === 'unqualified'
+                          ? styles.error
+                          : styles.warning
+                      : styles.info
                   )}
                 ></View>
                 <View className={classnames(styles.stageCard, expandedStage === 'finished' && styles.expanded)}>
@@ -296,55 +350,63 @@ const TracePage: React.FC = () => {
                     </View>
                     <Text className={classnames(styles.expandIcon, expandedStage === 'finished' && styles.expanded)}>▼</Text>
                   </View>
-                  {expandedStage === 'finished' && traceInfo.finishedInspection && (
+                  {expandedStage === 'finished' && (
                     <View className={styles.stageContent}>
-                      <View className={styles.contentSection}>
-                        <View className={styles.sectionTitle}>抽检概况</View>
-                        <View className={styles.paramList}>
-                          <View className={styles.paramItem}>
-                            <Text className={styles.paramName}>产品名称</Text>
-                            <Text className={styles.paramValue}>{traceInfo.finishedInspection.productName}</Text>
-                          </View>
-                          <View className={styles.paramItem}>
-                            <Text className={styles.paramName}>抽检数量</Text>
-                            <Text className={styles.paramValue}>{traceInfo.finishedInspection.sampleCount} 件</Text>
-                          </View>
-                          <View className={styles.paramItem}>
-                            <Text className={styles.paramName}>检验员</Text>
-                            <Text className={styles.paramValue}>{traceInfo.finishedInspection.inspector}</Text>
-                          </View>
-                          <View className={styles.paramItem}>
-                            <Text className={styles.paramName}>检验时间</Text>
-                            <Text className={styles.paramValue}>
-                              {formatDateTime(traceInfo.finishedInspection.inspectionTime)}
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-                      <View className={styles.contentSection}>
-                        <View className={styles.sectionTitle}>检验项目</View>
-                        {traceInfo.finishedInspection.items.map((item, idx) => (
-                          <View key={idx} className={styles.itemCard}>
-                            <View className={styles.itemHeader}>
-                              <Text className={styles.itemName}>{item.name}</Text>
-                              <StatusTag
-                                text={item.isQualified ? '合格' : '不合格'}
-                                type={item.isQualified ? 'success' : 'error'}
-                              />
+                      {traceInfo.finishedInspection ? (
+                        <>
+                          <View className={styles.contentSection}>
+                            <View className={styles.sectionTitle}>抽检概况</View>
+                            <View className={styles.paramList}>
+                              <View className={styles.paramItem}>
+                                <Text className={styles.paramName}>产品名称</Text>
+                                <Text className={styles.paramValue}>{traceInfo.finishedInspection.productName}</Text>
+                              </View>
+                              <View className={styles.paramItem}>
+                                <Text className={styles.paramName}>抽检数量</Text>
+                                <Text className={styles.paramValue}>{traceInfo.finishedInspection.sampleCount} 件</Text>
+                              </View>
+                              <View className={styles.paramItem}>
+                                <Text className={styles.paramName}>检验员</Text>
+                                <Text className={styles.paramValue}>{traceInfo.finishedInspection.inspector}</Text>
+                              </View>
+                              <View className={styles.paramItem}>
+                                <Text className={styles.paramName}>检验时间</Text>
+                                <Text className={styles.paramValue}>
+                                  {formatDateTime(traceInfo.finishedInspection.inspectionTime)}
+                                </Text>
+                              </View>
                             </View>
-                            <Text className={styles.itemDetail}>标准：{item.standard}</Text>
-                            <Text className={classnames(styles.itemResult, !item.isQualified && styles.fail)}>
-                              结果：{item.result}
-                            </Text>
                           </View>
-                        ))}
-                      </View>
-                      {traceInfo.finishedInspection.remark && (
-                        <View className={styles.contentSection}>
-                          <View className={styles.sectionTitle}>备注</View>
-                          <Text style={{ fontSize: 24, color: '#4E5969' }}>
-                            {traceInfo.finishedInspection.remark}
-                          </Text>
+                          <View className={styles.contentSection}>
+                            <View className={styles.sectionTitle}>检验项目</View>
+                            {traceInfo.finishedInspection.items?.map((item: any, idx: number) => (
+                              <View key={idx} className={styles.itemCard}>
+                                <View className={styles.itemHeader}>
+                                  <Text className={styles.itemName}>{item.name}</Text>
+                                  <StatusTag
+                                    text={item.isQualified ? '合格' : '不合格'}
+                                    type={item.isQualified ? 'success' : 'error'}
+                                  />
+                                </View>
+                                <Text className={styles.itemDetail}>标准：{item.standard}</Text>
+                                <Text className={classnames(styles.itemResult, !item.isQualified && styles.fail)}>
+                                  结果：{item.result}
+                                </Text>
+                              </View>
+                            ))}
+                          </View>
+                          {traceInfo.finishedInspection.remark && (
+                            <View className={styles.contentSection}>
+                              <View className={styles.sectionTitle}>备注</View>
+                              <Text style={{ fontSize: 24, color: '#4E5969' }}>
+                                {traceInfo.finishedInspection.remark}
+                              </Text>
+                            </View>
+                          )}
+                        </>
+                      ) : (
+                        <View className={styles.addEntry} onClick={goToAddFinished}>
+                          + 新增成品抽检记录
                         </View>
                       )}
                     </View>
@@ -352,93 +414,65 @@ const TracePage: React.FC = () => {
                 </View>
               </View>
 
-              {traceInfo.packagingInfo && (
-                <View className={styles.timelineItem}>
-                  <View className={classnames(styles.dot, styles.success)}></View>
-                  <View className={classnames(styles.stageCard, expandedStage === 'packaging' && styles.expanded)}>
-                    <View className={styles.stageHeader} onClick={() => toggleStage('packaging')}>
-                      <View className={styles.stageIcon}>📦</View>
-                      <View className={styles.stageInfo}>
-                        <Text className={styles.stageTitle}>包装信息</Text>
-                        <Text className={styles.stageDesc}>
-                          {traceInfo.packagingInfo.packageType} · {traceInfo.packagingInfo.packageSpec}
-                        </Text>
-                      </View>
-                      <Text className={classnames(styles.expandIcon, expandedStage === 'packaging' && styles.expanded)}>▼</Text>
+              <View className={styles.timelineItem}>
+                <View
+                  className={classnames(
+                    styles.dot,
+                    traceInfo.rectifications?.length > 0 ? styles.warning : styles.info
+                  )}
+                ></View>
+                <View className={classnames(styles.stageCard, expandedStage === 'rectification' && styles.expanded)}>
+                  <View className={styles.stageHeader} onClick={() => toggleStage('rectification')}>
+                    <View className={styles.stageIcon}>⚠️</View>
+                    <View className={styles.stageInfo}>
+                      <Text className={styles.stageTitle}>问题整改</Text>
+                      <Text className={styles.stageDesc}>
+                        {traceInfo.rectifications?.length || 0} 条整改记录
+                        {traceInfo.rectifications?.length > 0 &&
+                          (traceInfo.rectifications.some((r: any) => r.status === 'completed')
+                            ? ' · 部分已完成'
+                            : ' · 进行中')}
+                      </Text>
                     </View>
-                    {expandedStage === 'packaging' && (
-                      <View className={styles.stageContent}>
-                        <View className={styles.paramList}>
-                          <View className={styles.paramItem}>
-                            <Text className={styles.paramName}>包装类型</Text>
-                            <Text className={styles.paramValue}>{traceInfo.packagingInfo.packageType}</Text>
-                          </View>
-                          <View className={styles.paramItem}>
-                            <Text className={styles.paramName}>包装规格</Text>
-                            <Text className={styles.paramValue}>{traceInfo.packagingInfo.packageSpec}</Text>
-                          </View>
-                          <View className={styles.paramItem}>
-                            <Text className={styles.paramName}>包装时间</Text>
-                            <Text className={styles.paramValue}>
-                              {formatDateTime(traceInfo.packagingInfo.packageTime)}
-                            </Text>
-                          </View>
-                          <View className={styles.paramItem}>
-                            <Text className={styles.paramName}>包装员</Text>
-                            <Text className={styles.paramValue}>{traceInfo.packagingInfo.operator}</Text>
-                          </View>
-                        </View>
-                      </View>
-                    )}
+                    <Text className={classnames(styles.expandIcon, expandedStage === 'rectification' && styles.expanded)}>▼</Text>
                   </View>
-                </View>
-              )}
-
-              {traceInfo.outboundInfo && (
-                <View className={styles.timelineItem}>
-                  <View className={classnames(styles.dot, styles.success)}></View>
-                  <View className={classnames(styles.stageCard, expandedStage === 'outbound' && styles.expanded)}>
-                    <View className={styles.stageHeader} onClick={() => toggleStage('outbound')}>
-                      <View className={styles.stageIcon}>🚚</View>
-                      <View className={styles.stageInfo}>
-                        <Text className={styles.stageTitle}>出库信息</Text>
-                        <Text className={styles.stageDesc}>
-                          {traceInfo.outboundInfo.destination}
-                        </Text>
-                      </View>
-                      <Text className={classnames(styles.expandIcon, expandedStage === 'outbound' && styles.expanded)}>▼</Text>
+                  {expandedStage === 'rectification' && (
+                    <View className={styles.stageContent}>
+                      {traceInfo.rectifications?.length > 0 ? (
+                        traceInfo.rectifications.map((rect: any, idx: number) => (
+                          <View key={idx} className={styles.contentSection}>
+                            <View className={styles.paramList}>
+                              <View className={styles.paramItem}>
+                                <Text className={styles.paramName}>整改单号</Text>
+                                <Text className={styles.paramValue}>{rect.orderNo}</Text>
+                              </View>
+                              <View className={styles.paramItem}>
+                                <Text className={styles.paramName}>问题描述</Text>
+                                <Text className={styles.paramValue}>{rect.title}</Text>
+                              </View>
+                              <View className={styles.paramItem}>
+                                <Text className={styles.paramName}>责任人</Text>
+                                <Text className={styles.paramValue}>{rect.responsiblePerson}</Text>
+                              </View>
+                              <View className={styles.paramItem}>
+                                <Text className={styles.paramName}>状态</Text>
+                                <StatusTag
+                                  text={rect.status === 'pending' ? '待处理' : rect.status === 'processing' ? '整改中' : rect.status === 'rechecking' ? '待复查' : rect.status === 'completed' ? '已完成' : '已关闭'}
+                                  type={rect.status === 'pending' ? 'warning' : rect.status === 'processing' ? 'info' : rect.status === 'rechecking' ? 'primary' : rect.status === 'completed' ? 'success' : 'gray'}
+                                />
+                              </View>
+                            </View>
+                          </View>
+                        ))
+                      ) : (
+                        <View className={styles.addEntry} onClick={goToAddRectification}>
+                          + 创建整改单
+                        </View>
+                      )}
                     </View>
-                    {expandedStage === 'outbound' && (
-                      <View className={styles.stageContent}>
-                        <View className={styles.paramList}>
-                          <View className={styles.paramItem}>
-                            <Text className={styles.paramName}>出库单号</Text>
-                            <Text className={styles.paramValue}>{traceInfo.outboundInfo.outboundNo}</Text>
-                          </View>
-                          <View className={styles.paramItem}>
-                            <Text className={styles.paramName}>出库时间</Text>
-                            <Text className={styles.paramValue}>
-                              {formatDateTime(traceInfo.outboundInfo.outboundTime)}
-                            </Text>
-                          </View>
-                          <View className={styles.paramItem}>
-                            <Text className={styles.paramName}>目的地</Text>
-                            <Text className={styles.paramValue}>{traceInfo.outboundInfo.destination}</Text>
-                          </View>
-                          <View className={styles.paramItem}>
-                            <Text className={styles.paramName}>接收人</Text>
-                            <Text className={styles.paramValue}>{traceInfo.outboundInfo.receiver}</Text>
-                          </View>
-                          <View className={styles.paramItem}>
-                            <Text className={styles.paramName}>出库数量</Text>
-                            <Text className={styles.paramValue}>{traceInfo.outboundInfo.quantity} 件</Text>
-                          </View>
-                        </View>
-                      </View>
-                    )}
-                  </View>
+                  )}
                 </View>
-              )}
+              </View>
             </View>
           </>
         )}

@@ -76,95 +76,57 @@
 
 .cardHeader {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   margin-bottom: $spacing-md;
-  gap: $spacing-md;
 }
 
 .title {
-  flex: 1;
   font-size: $font-size-lg;
   font-weight: $font-weight-semibold;
   color: $color-text-primary;
-  line-height: 1.4;
-  @include text-ellipsis-multi(2);
+  @include text-ellipsis;
+  flex: 1;
+  margin-right: $spacing-md;
 }
 
-.levelTag {
-  flex-shrink: 0;
-  padding: $spacing-xs $spacing-sm;
-  border-radius: $radius-xs;
-  font-size: $font-size-xs;
-  font-weight: $font-weight-medium;
-
-  &.low {
-    color: $color-info;
-    background-color: rgba(22, 93, 255, 0.1);
-  }
-
-  &.medium {
-    color: $color-warning;
-    background-color: rgba(255, 159, 67, 0.1);
-  }
-
-  &.high {
-    color: $color-error;
-    background-color: rgba(245, 63, 63, 0.1);
-  }
-
-  &.critical {
-    color: $color-text-white;
-    background-color: $color-error;
-  }
-}
-
-.metaRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: $spacing-md;
-  margin-bottom: $spacing-md;
-}
-
-.metaItem {
-  display: flex;
-  align-items: center;
+.cardSubtitle {
   font-size: $font-size-sm;
   color: $color-text-secondary;
-  gap: $spacing-xs;
-
-  .icon {
-    font-size: $font-size-sm;
-  }
-}
-
-.sourceTag {
-  display: inline-block;
-  padding: 2rpx $spacing-sm;
-  border-radius: $radius-xs;
-  font-size: $font-size-xs;
-  background-color: $color-primary-bg;
-  color: $color-primary;
-}
-
-.description {
-  font-size: $font-size-sm;
-  color: $color-text-secondary;
-  line-height: 1.6;
   margin-bottom: $spacing-md;
-  @include text-ellipsis-multi(2);
 }
 
-.deadline {
+.sampleInfo {
   display: flex;
-  align-items: center;
-  gap: $spacing-xs;
-  font-size: $font-size-sm;
-  color: $color-error;
+  gap: $spacing-lg;
   margin-bottom: $spacing-md;
+  padding: $spacing-md;
+  background-color: $color-bg-page;
+  border-radius: $radius-md;
 
-  &.normal {
-    color: $color-text-tertiary;
+  .item {
+    flex: 1;
+    text-align: center;
+
+    .num {
+      font-size: $font-size-xl;
+      font-weight: $font-weight-bold;
+      color: $color-primary;
+      margin-bottom: $spacing-xs;
+    }
+
+    .label {
+      font-size: $font-size-xs;
+      color: $color-text-tertiary;
+    }
+
+    &.success .num {
+      color: $color-success;
+    }
+
+    &.error .num {
+      color: $color-error;
+    }
   }
 }
 
@@ -176,25 +138,6 @@
   border-top: 1rpx solid $color-divider;
   font-size: $font-size-xs;
   color: $color-text-tertiary;
-}
-
-.actionBtns {
-  display: flex;
-  gap: $spacing-sm;
-}
-
-.btnSmall {
-  @include button-reset;
-  height: 56rpx;
-  padding: 0 $spacing-md;
-  border-radius: $radius-button;
-  font-size: $font-size-xs;
-  background-color: $color-primary-bg;
-  color: $color-primary;
-
-  &:active {
-    opacity: 0.8;
-  }
 }
 
 .fab {

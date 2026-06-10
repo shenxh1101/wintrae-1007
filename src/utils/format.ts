@@ -1,5 +1,5 @@
 import dayjs from 'dayjs';
-import type { InspectionStatus, RectificationStatus } from '@/types/quality';
+import type { InspectionStatus, RectificationStatus, SourceType, LevelType } from '@/types/quality';
 
 export const formatDate = (date: string | Date, format = 'YYYY-MM-DD'): string => {
   return dayjs(date).format(format);
@@ -51,29 +51,33 @@ export const getRectificationStatusColor = (status: RectificationStatus): string
   return map[status];
 };
 
-export const getLevelText = (level: 'general' | 'important' | 'critical'): string => {
-  const map = {
-    general: '一般',
-    important: '重要',
-    critical: '严重'
+export const getLevelText = (level: LevelType): string => {
+  const map: Record<LevelType, string> = {
+    low: '一般',
+    medium: '中等',
+    high: '严重',
+    critical: '紧急'
   };
   return map[level];
 };
 
-export const getLevelColor = (level: 'general' | 'important' | 'critical'): string => {
-  const map = {
-    general: '#165DFF',
-    important: '#FF7D00',
+export const getLevelColor = (level: LevelType): string => {
+  const map: Record<LevelType, string> = {
+    low: '#165DFF',
+    medium: '#FF9F43',
+    high: '#F53F3F',
     critical: '#F53F3F'
   };
   return map[level];
 };
 
-export const getSourceTypeText = (type: 'material' | 'process' | 'finished'): string => {
-  const map = {
-    material: '原料验收',
+export const getSourceTypeText = (type: SourceType): string => {
+  const map: Record<SourceType, string> = {
+    raw_material: '原料验收',
     process: '过程检查',
-    finished: '成品抽检'
+    finished: '成品抽检',
+    customer: '客诉反馈',
+    audit: '内审发现'
   };
   return map[type];
 };

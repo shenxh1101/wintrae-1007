@@ -2,9 +2,15 @@ export default defineAppConfig({
   pages: [
     'pages/scan/index',
     'pages/acceptance/index',
-    'pages/inspection/index',
+    'pages/process/index',
+    'pages/finished/index',
     'pages/rectification/index',
-    'pages/trace/index'
+    'pages/trace/index',
+    'pages/acceptance-add/index',
+    'pages/process-add/index',
+    'pages/finished-add/index',
+    'pages/rectification-add/index',
+    'pages/rectification-detail/index'
   ],
   window: {
     backgroundTextStyle: 'light',
@@ -28,16 +34,16 @@ export default defineAppConfig({
         text: '验收'
       },
       {
-        pagePath: 'pages/inspection/index',
-        text: '检验'
+        pagePath: 'pages/process/index',
+        text: '过程检查'
+      },
+      {
+        pagePath: 'pages/finished/index',
+        text: '成品抽检'
       },
       {
         pagePath: 'pages/rectification/index',
         text: '整改'
-      },
-      {
-        pagePath: 'pages/trace/index',
-        text: '追溯'
       }
     ]
   }

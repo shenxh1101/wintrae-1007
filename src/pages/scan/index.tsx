@@ -1,16 +1,29 @@
 import React, { useState } from 'react';
 import { View, Text, Input, Button, ScrollView } from '@tarojs/components';
-import Taro from '@tarojs/taro';
+import Taro, { useDidShow } from '@tarojs/taro';
 import classnames from 'classnames';
 import styles from './index.module.scss';
-import { mockScanRecords } from '@/data/trace';
+import { useQualityStore } from '@/store/qualityStore';
 import type { ScanRecord } from '@/types/quality';
 import { formatDateTime } from '@/utils/format';
 import EmptyState from '@/components/EmptyState';
 
+const productNames: Record<string, string> = {
+  'B202406100123': '原味酸奶',
+  'B202406090088': '草莓酸奶',
+  'B202406080056': '巧克力奶',
+  'B202406070101': '原味纯牛奶',
+  'B202406100124': '白砂糖',
+  'B202406090089': '全脂乳粉',
+  'B202406070102': '香蕉牛奶'
+};
+
 const ScanPage: React.FC = () => {
   const [batchNo, setBatchNo] = useState('');
-  const [records, setRecords] = useState<ScanRecord[]>(mockScanRecords.slice(0, 5));
+  const { scanRecords, addScanRecord } = useQualityStore();
+
+  useDidShow(() => {
+  });
 
   const handleScan = () => {
     Taro.showToast({
@@ -19,13 +32,25 @@ const ScanPage: React.FC = () => {
       duration: 1000
     });
     setTimeout(() => {
-      const randomBatch = mockScanRecords[Math.floor(Math.random() * mockScanRecords.length)];
-      setBatchNo(randomBatch.batchNo);
+      const mockBatches = Object.keys(productNames);
+      const randomBatch = mockBatches[Math.floor(Math.random() * mockBatches.length)];
+      setBatchNo(randomBatch);
       Taro.showToast({
         title: '扫码成功',
         icon: 'success'
       });
+      setTimeout(() => {
+        goToTrace(randomBatch);
+      }, 500);
     }, 1000);
+  };
+
+  const goToTrace = (batch: string) => {
+    const productName = productNames[batch] || '产品';
+    addScanRecord(batch, productName);
+    Taro.navigateTo({
+      url: `/pages/trace/index?batchNo=${batch}`
+    });
   };
 
   const handleQuery = () => {
@@ -36,30 +61,12 @@ const ScanPage: React.FC = () => {
       });
       return;
     }
-    const newRecord: ScanRecord = {
-      id: Date.now().toString(),
-      batchNo: batchNo.trim(),
-      scanTime: new Date().toISOString(),
-      productName: '查询产品'
-    };
-    const existIndex = records.findIndex(r => r.batchNo === batchNo.trim());
-    if (existIndex > -1) {
-      const updated = [...records];
-      updated.splice(existIndex, 1);
-      setRecords([newRecord, ...updated]);
-    } else {
-      setRecords([newRecord, ...records.slice(0, 9)]);
-    }
-    Taro.switchTab({
-      url: '/pages/trace/index'
-    });
+    goToTrace(batchNo.trim());
   };
 
   const handleRecordClick = (record: ScanRecord) => {
     setBatchNo(record.batchNo);
-    Taro.switchTab({
-      url: '/pages/trace/index'
-    });
+    goToTrace(record.batchNo);
   };
 
   const handleClearHistory = () => {
@@ -68,26 +75,30 @@ const ScanPage: React.FC = () => {
       content: '确定清空历史记录？',
       success: (res) => {
         if (res.confirm) {
-          setRecords([]);
+          useQualityStore.setState({ scanRecords: [] });
         }
       }
     });
   };
 
-  const handleQuickAction = (index: number) => {
-    const tabMap = ['acceptance', 'inspection', 'rectification', 'trace'];
-    if (index < tabMap.length) {
-      Taro.switchTab({
-        url: `/pages/${tabMap[index]}/index`
-      });
+  const handleQuickAction = (type: string) => {
+    const pageMap: Record<string, string> = {
+      acceptance: '/pages/acceptance/index',
+      process: '/pages/process/index',
+      finished: '/pages/finished/index',
+      rectification: '/pages/rectification/index'
+    };
+    const url = pageMap[type];
+    if (url) {
+      Taro.switchTab({ url });
     }
   };
 
   const quickActions = [
-    { icon: '📦', label: '原料验收' },
-    { icon: '🔬', label: '过程检验' },
-    { icon: '📋', label: '问题整改' },
-    { icon: '🔍', label: '追溯查询' }
+    { icon: '📦', label: '原料验收', type: 'acceptance' },
+    { icon: '🔧', label: '过程检查', type: 'process' },
+    { icon: '✅', label: '成品抽检', type: 'finished' },
+    { icon: '📋', label: '问题整改', type: 'rectification' }
   ];
 
   return (
@@ -120,7 +131,7 @@ const ScanPage: React.FC = () => {
             <View
               key={index}
               className={styles.quickItem}
-              onClick={() => handleQuickAction(index)}
+              onClick={() => handleQuickAction(item.type)}
             >
               <View className={styles.iconBox}>{item.icon}</View>
               <Text className={styles.label}>{item.label}</Text>
@@ -132,14 +143,14 @@ const ScanPage: React.FC = () => {
       <View className={styles.historySection}>
         <View className={styles.sectionHeader}>
           <Text className={styles.title}>历史记录</Text>
-          {records.length > 0 && (
+          {scanRecords.length > 0 && (
             <Text className={styles.clearBtn} onClick={handleClearHistory}>清空</Text>
           )}
         </View>
 
-        {records.length > 0 ? (
+        {scanRecords.length > 0 ? (
           <View className={styles.recordList}>
-            {records.map((record) => (
+            {scanRecords.map((record) => (
               <View
                 key={record.id}
                 className={styles.recordItem}

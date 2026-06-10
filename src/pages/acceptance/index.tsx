@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, Image, ScrollView, Button } from '@tarojs/components';
-import Taro from '@tarojs/taro';
+import Taro, { useDidShow } from '@tarojs/taro';
 import classnames from 'classnames';
 import styles from './index.module.scss';
-import { mockAcceptanceList } from '@/data/acceptance';
+import { useQualityStore } from '@/store/qualityStore';
 import type { RawMaterialAcceptance, InspectionStatus } from '@/types/quality';
-import { formatDateTime, getInspectionStatusText, getInspectionStatusColor } from '@/utils/format';
+import { formatDateTime, getInspectionStatusText } from '@/utils/format';
 import StatusTag from '@/components/StatusTag';
 import EmptyState from '@/components/EmptyState';
 
@@ -21,27 +21,15 @@ const filters: { key: FilterType; label: string }[] = [
 
 const AcceptancePage: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
-  const [list, setList] = useState<RawMaterialAcceptance[]>(mockAcceptanceList);
+  const { acceptanceList } = useQualityStore();
+
+  useDidShow(() => {
+  });
 
   const filteredList = useMemo(() => {
-    if (activeFilter === 'all') return list;
-    return list.filter(item => item.conclusion === activeFilter);
-  }, [list, activeFilter]);
-
-  const handleAdd = () => {
-    Taro.showToast({
-      title: '新增验收单',
-      icon: 'none'
-    });
-  };
-
-  const handleCardClick = (item: RawMaterialAcceptance) => {
-    console.log('[Acceptance] 查看验收单:', item.id);
-    Taro.showToast({
-      title: `查看 ${item.materialName}`,
-      icon: 'none'
-    });
-  };
+    if (activeFilter === 'all') return acceptanceList;
+    return acceptanceList.filter(item => item.conclusion === activeFilter);
+  }, [acceptanceList, activeFilter]);
 
   const getStatusType = (status: InspectionStatus): 'success' | 'warning' | 'error' | 'info' | 'gray' => {
     const map: Record<InspectionStatus, 'success' | 'warning' | 'error' | 'info' | 'gray'> = {
@@ -51,6 +39,19 @@ const AcceptancePage: React.FC = () => {
       recheck: 'info'
     };
     return map[status];
+  };
+
+  const handleAdd = () => {
+    Taro.navigateTo({
+      url: '/pages/acceptance-add/index'
+    });
+  };
+
+  const handleCardClick = (item: RawMaterialAcceptance) => {
+    console.log('[Acceptance] 查看验收单:', item.id);
+    Taro.navigateTo({
+      url: `/pages/trace/index?batchNo=${item.batchNo}`
+    });
   };
 
   return (

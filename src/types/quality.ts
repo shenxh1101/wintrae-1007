@@ -52,6 +52,7 @@ export interface FinishedProductInspection {
   id: string;
   batchNo: string;
   productName: string;
+  productSpec?: string;
   sampleCount: number;
   inspector: string;
   inspectionTime: string;
@@ -59,28 +60,41 @@ export interface FinishedProductInspection {
     name: string;
     standard: string;
     result: string;
+    unit?: string;
+    method?: string;
     isQualified: boolean;
   }[];
   conclusion: InspectionStatus;
   remark: string;
 }
 
+export type SourceType = 'raw_material' | 'process' | 'finished' | 'customer' | 'audit';
+export type LevelType = 'low' | 'medium' | 'high' | 'critical';
+
 export interface RectificationOrder {
   id: string;
   orderNo: string;
   title: string;
   batchNo: string;
-  sourceType: 'material' | 'process' | 'finished';
+  sourceType: SourceType;
   description: string;
-  level: 'general' | 'important' | 'critical';
-  creator: string;
-  createTime: string;
+  level: LevelType;
+  creator?: string;
+  createTime?: string;
+  createdAt?: string;
   responsiblePerson: string;
   deadline: string;
   status: RectificationStatus;
+  processContent?: string;
+  processStartTime?: string;
+  submitRecheckContent?: string;
+  submitRecheckTime?: string;
   recheckResult?: string;
   recheckTime?: string;
   rechecker?: string;
+  recheckConclusion?: 'pass' | 'fail';
+  remark?: string;
+  photos?: string[];
 }
 
 export interface TraceInfo {

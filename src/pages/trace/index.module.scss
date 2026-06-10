@@ -40,25 +40,6 @@
   }
 }
 
-.quickSearch {
-  margin-top: $spacing-md;
-  display: flex;
-  gap: $spacing-sm;
-  flex-wrap: wrap;
-
-  .chip {
-    padding: $spacing-xs $spacing-md;
-    background-color: rgba(255, 255, 255, 0.2);
-    border-radius: $radius-round;
-    font-size: $font-size-xs;
-    color: $color-text-white;
-
-    &:active {
-      opacity: 0.8;
-    }
-  }
-}
-
 .content {
   padding: $spacing-md $page-padding;
   margin-top: -20rpx;
@@ -329,4 +310,20 @@
 
 .emptySearch {
   padding: $spacing-xl * 2 0;
+}
+
+.addEntry {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-md;
+  color: $color-primary;
+  font-size: $font-size-sm;
+  background-color: $color-primary-bg;
+  border-radius: $radius-md;
+  margin-top: $spacing-sm;
+
+  &:active {
+    opacity: 0.8;
+  }
 }

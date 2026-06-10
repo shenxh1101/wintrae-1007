@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, Button } from '@tarojs/components';
-import Taro from '@tarojs/taro';
+import Taro, { useDidShow } from '@tarojs/taro';
 import classnames from 'classnames';
 import styles from './index.module.scss';
-import { mockRectificationList } from '@/data/rectification';
+import { useQualityStore } from '@/store/qualityStore';
 import type { RectificationOrder, RectificationStatus } from '@/types/quality';
 import { formatDateTime, getRectificationStatusText, getLevelText, getSourceTypeText } from '@/utils/format';
 import StatusTag from '@/components/StatusTag';
@@ -22,12 +22,15 @@ const filters: { key: FilterType; label: string }[] = [
 
 const RectificationPage: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
-  const [list] = useState<RectificationOrder[]>(mockRectificationList);
+  const { rectificationList } = useQualityStore();
+
+  useDidShow(() => {
+  });
 
   const filteredList = useMemo(() => {
-    if (activeFilter === 'all') return list;
-    return list.filter(item => item.status === activeFilter);
-  }, [list, activeFilter]);
+    if (activeFilter === 'all') return rectificationList;
+    return rectificationList.filter(item => item.status === activeFilter);
+  }, [rectificationList, activeFilter]);
 
   const getStatusType = (status: RectificationStatus): 'success' | 'warning' | 'error' | 'info' | 'primary' | 'purple' | 'gray' => {
     const map: Record<RectificationStatus, 'success' | 'warning' | 'error' | 'info' | 'primary' | 'purple' | 'gray'> = {
@@ -42,25 +45,22 @@ const RectificationPage: React.FC = () => {
 
   const handleCardClick = (item: RectificationOrder) => {
     console.log('[Rectification] 查看整改单:', item.id);
-    Taro.showToast({
-      title: `查看 ${item.title}`,
-      icon: 'none'
+    Taro.navigateTo({
+      url: `/pages/rectification-detail/index?id=${item.id}`
     });
   };
 
   const handleAdd = () => {
-    Taro.showToast({
-      title: '创建整改单',
-      icon: 'none'
+    Taro.navigateTo({
+      url: '/pages/rectification-add/index'
     });
   };
 
   const handleAction = (action: string, item: RectificationOrder, e: React.MouseEvent) => {
     e.stopPropagation();
     console.log('[Rectification] 操作:', action, item.id);
-    Taro.showToast({
-      title: `${action}操作`,
-      icon: 'none'
+    Taro.navigateTo({
+      url: `/pages/rectification-detail/index?id=${item.id}&action=${action}`
     });
   };
 
