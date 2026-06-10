@@ -34,47 +34,33 @@ const FinishedAddPage: React.FC = () => {
   ]);
 
   const stats = useMemo(() => {
-    const total = items.filter(i => i.name.trim()).length;
+    let total = 0;
     let qualified = 0;
     let unqualified = 0;
+    let pending = 0;
     items.forEach(item => {
       if (!item.name.trim()) return;
-      if (!item.result) return;
-      if (item.result && item.standard) {
-        const resultNum = parseFloat(item.result);
-        if (isNaN(resultNum)) {
-          qualified++;
-        } else {
-          const standardMatch = item.standard.match(/([\d.]+)/);
-          if (standardMatch) {
-            const stdNum = parseFloat(standardMatch[1]);
-            if (item.standard.includes('≤') || item.standard.includes('<=')) {
-              resultNum <= stdNum ? qualified++ : unqualified++;
-            } else if (item.standard.includes('≥') || item.standard.includes('>=')) {
-              resultNum >= stdNum ? qualified++ : unqualified++;
-            } else if (item.standard.includes('±')) {
-              const toleranceMatch = item.standard.match(/±\s*([\d.]+)/);
-              if (toleranceMatch) {
-                const tolerance = parseFloat(toleranceMatch[1]);
-                Math.abs(resultNum - stdNum) <= tolerance ? qualified++ : unqualified++;
-              } else {
-                qualified++;
-              }
-            } else {
-              qualified++;
-            }
-          } else {
-            qualified++;
-          }
-        }
+      total++;
+      if (!item.result) {
+        pending++;
+        return;
+      }
+      const itemResult = getItemResult(item);
+      if (itemResult === 'qualified') {
+        qualified++;
+      } else if (itemResult === 'unqualified') {
+        unqualified++;
+      } else {
+        pending++;
       }
     });
-    return { total, qualified, unqualified };
+    return { total, qualified, unqualified, pending };
   }, [items]);
 
   const autoConclusion = useMemo((): InspectionStatus => {
     if (stats.unqualified > 0) return 'unqualified';
-    if (stats.qualified > 0 && stats.qualified === stats.total) return 'qualified';
+    if (stats.pending > 0) return 'pending';
+    if (stats.total > 0 && stats.qualified === stats.total) return 'qualified';
     return 'pending';
   }, [stats]);
 
@@ -161,7 +147,7 @@ const FinishedAddPage: React.FC = () => {
         result: item.result || '—',
         unit: item.unit,
         method: item.method || '—',
-        isQualified: getItemResult(item) === 'unqualified' ? false : true
+        isQualified: getItemResult(item) === 'qualified'
       }))
     });
 

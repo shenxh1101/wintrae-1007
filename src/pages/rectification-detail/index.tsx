@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { View, Text, Image, ScrollView, Button, Textarea } from '@tarojs/components';
 import Taro, { useRouter, useDidShow } from '@tarojs/taro';
 import classnames from 'classnames';
@@ -10,9 +10,18 @@ import StatusTag from '@/components/StatusTag';
 
 type ActionMode = 'view' | 'process' | 'submitRecheck' | 'recheck';
 
+interface TimelineEntry {
+  key: string;
+  title: string;
+  time: string;
+  content: string;
+  active: boolean;
+  done: boolean;
+}
+
 const RectificationDetailPage: React.FC = () => {
   const router = useRouter();
-  const { getRectificationById, updateRectificationStatus, rectificationList, addRectificationLog } = useQualityStore();
+  const { getRectificationById, updateRectificationStatus, rectificationList } = useQualityStore();
 
   const id = router.params.id || '';
   const initialAction = router.params.action || '';
@@ -22,17 +31,23 @@ const RectificationDetailPage: React.FC = () => {
   const [recheckContent, setRecheckContent] = useState('');
   const [recheckResult, setRecheckResult] = useState<'pass' | 'fail' | ''>('');
 
+  const actionApplied = useRef(false);
+
   const order = useMemo(() => {
     return getRectificationById(id);
   }, [id, rectificationList]);
 
   useDidShow(() => {
+    if (actionApplied.current) return;
     if (initialAction === '处理') {
       setActionMode('process');
+      actionApplied.current = true;
     } else if (initialAction === '提交复查') {
       setActionMode('submitRecheck');
+      actionApplied.current = true;
     } else if (initialAction === '复查') {
       setActionMode('recheck');
+      actionApplied.current = true;
     }
   });
 
@@ -57,21 +72,22 @@ const RectificationDetailPage: React.FC = () => {
     return map[status];
   };
 
-  const getTimelineItems = () => {
-    const items: { status: string; title: string; time: string; content: string; active: boolean; done: boolean }[] = [];
+  const buildTimeline = (): TimelineEntry[] => {
+    const items: TimelineEntry[] = [];
+    const s = order.status;
 
     items.push({
-      status: 'created',
+      key: 'created',
       title: '创建整改单',
-      time: formatDateTime(order.createdAt),
-      content: `问题来源：${getSourceTypeText(order.sourceType)}\n责任人：${order.responsiblePerson}`,
+      time: order.createdAt ? formatDateTime(order.createdAt) : (order.createTime ? formatDateTime(order.createTime) : ''),
+      content: `问题来源：${getSourceTypeText(order.sourceType)} | 责任人：${order.responsiblePerson}`,
       active: false,
       done: true
     });
 
-    if (order.status === 'pending') {
+    if (s === 'pending') {
       items.push({
-        status: 'pending',
+        key: 'pending',
         title: '待处理',
         time: '',
         content: '等待责任人开始处理',
@@ -80,32 +96,65 @@ const RectificationDetailPage: React.FC = () => {
       });
     } else {
       items.push({
-        status: 'processing',
-        title: '整改中',
+        key: 'processing',
+        title: '开始整改',
         time: order.processStartTime ? formatDateTime(order.processStartTime) : '',
         content: order.processContent || '责任人已开始处理',
-        active: order.status === 'processing',
+        active: false,
         done: true
       });
     }
 
-    if (order.status === 'rechecking' || order.status === 'completed' || order.status === 'closed') {
+    if (s === 'processing') {
       items.push({
-        status: 'rechecking',
-        title: '待复查',
+        key: 'processing-current',
+        title: '整改中',
+        time: '',
+        content: '正在整改，完成后可提交复查',
+        active: true,
+        done: false
+      });
+    }
+
+    if (s === 'rechecking' || s === 'completed' || s === 'closed') {
+      items.push({
+        key: 'submit-recheck',
+        title: '提交复查',
         time: order.submitRecheckTime ? formatDateTime(order.submitRecheckTime) : '',
         content: order.submitRecheckContent || '已提交复查申请',
-        active: order.status === 'rechecking',
+        active: false,
         done: true
       });
     }
 
-    if (order.status === 'completed' || order.status === 'closed') {
+    if (s === 'rechecking') {
       items.push({
-        status: 'completed',
-        title: order.status === 'closed' ? '已关闭' : '已完成',
+        key: 'rechecking-current',
+        title: '待复查',
+        time: '',
+        content: '等待复查人员审核',
+        active: true,
+        done: false
+      });
+    }
+
+    if (s === 'completed' || s === 'closed') {
+      items.push({
+        key: 'recheck-done',
+        title: '复查结果',
         time: order.recheckTime ? formatDateTime(order.recheckTime) : '',
         content: order.recheckResult || '整改完成',
+        active: false,
+        done: true
+      });
+    }
+
+    if (s === 'closed') {
+      items.push({
+        key: 'closed',
+        title: '已关闭',
+        time: '',
+        content: '该整改单已关闭',
         active: false,
         done: true
       });
@@ -158,14 +207,14 @@ const RectificationDetailPage: React.FC = () => {
         recheckTime: new Date().toISOString(),
         recheckConclusion: 'pass'
       });
-      Taro.showToast({ title: '复查通过', icon: 'success' });
+      Taro.showToast({ title: '复查通过，整改完成', icon: 'success' });
     } else {
       updateRectificationStatus(id, 'processing', {
         recheckResult: '复查不通过：' + recheckContent.trim(),
         recheckTime: new Date().toISOString(),
         recheckConclusion: 'fail'
       });
-      Taro.showToast({ title: '退回整改', icon: 'none' });
+      Taro.showToast({ title: '已退回整改', icon: 'none' });
     }
     setActionMode('view');
     setRecheckContent('');
@@ -175,7 +224,7 @@ const RectificationDetailPage: React.FC = () => {
   const handleClose = () => {
     Taro.showModal({
       title: '确认关闭',
-      content: '关闭后将无法再进行操作',
+      content: '关闭后将无法再进行操作，是否确认？',
       success: (res) => {
         if (res.confirm) {
           updateRectificationStatus(id, 'closed', {});
@@ -185,11 +234,11 @@ const RectificationDetailPage: React.FC = () => {
     });
   };
 
-  const getActionButtons = () => {
+  const renderActionButtons = () => {
     if (actionMode !== 'view') {
       return (
         <View className={styles.footer}>
-          <Button className={styles.secondaryBtn} onClick={() => setActionMode('view')}>取消</Button>
+          <Button className={styles.secondaryBtn} onClick={() => { setActionMode('view'); setProcessContent(''); setRecheckContent(''); setRecheckResult(''); }}>取消</Button>
           {actionMode === 'process' && (
             <Button className={styles.primaryBtn} onClick={handleProcess}>确认开始整改</Button>
           )}
@@ -209,26 +258,26 @@ const RectificationDetailPage: React.FC = () => {
       case 'pending':
         return (
           <View className={styles.footer}>
-            <Button className={styles.primaryBtn} onClick={() => setActionMode('process')}>去处理</Button>
+            <Button className={styles.primaryBtn} onClick={() => { setActionMode('process'); setProcessContent(''); }}>去处理</Button>
           </View>
         );
       case 'processing':
         return (
           <View className={styles.footer}>
-            <Button className={styles.primaryBtn} onClick={() => setActionMode('submitRecheck')}>提交复查</Button>
+            <Button className={styles.primaryBtn} onClick={() => { setActionMode('submitRecheck'); setProcessContent(''); }}>提交复查</Button>
           </View>
         );
       case 'rechecking':
         return (
           <View className={styles.footer}>
-            <Button className={styles.primaryBtn} onClick={() => setActionMode('recheck')}>去复查</Button>
+            <Button className={styles.primaryBtn} onClick={() => { setActionMode('recheck'); setRecheckContent(''); setRecheckResult(''); }}>去复查</Button>
           </View>
         );
       case 'completed':
         return (
           <View className={styles.footer}>
-            <Button className={styles.secondaryBtn} onClick={handleClose}>关闭</Button>
-            <Button className={styles.primaryBtn} style={{ backgroundColor: '#999' }} disabled>已完成</Button>
+            <Button className={styles.secondaryBtn} onClick={handleClose}>关闭整改单</Button>
+            <Button className={styles.primaryBtn} style={{ backgroundColor: '#00b42a' }} disabled>已完成</Button>
           </View>
         );
       case 'closed':
@@ -238,7 +287,7 @@ const RectificationDetailPage: React.FC = () => {
     }
   };
 
-  const timelineItems = getTimelineItems();
+  const timelineItems = buildTimeline();
 
   return (
     <View className={styles.page}>
@@ -280,10 +329,12 @@ const RectificationDetailPage: React.FC = () => {
               <Text className={styles.label}>截止时间</Text>
               <Text className={styles.value}>{formatDateTime(order.deadline)}</Text>
             </View>
-            <View className={styles.infoRow}>
-              <Text className={styles.label}>创建人</Text>
-              <Text className={styles.value}>{order.creator || '系统'}</Text>
-            </View>
+            {order.creator && (
+              <View className={styles.infoRow}>
+                <Text className={styles.label}>创建人</Text>
+                <Text className={styles.value}>{order.creator}</Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -379,8 +430,8 @@ const RectificationDetailPage: React.FC = () => {
             <Text>处理进度</Text>
           </View>
           <View className={styles.timeline}>
-            {timelineItems.map((item, idx) => (
-              <View key={idx} className={styles.timelineItem}>
+            {timelineItems.map((item) => (
+              <View key={item.key} className={styles.timelineItem}>
                 <View className={classnames(styles.dot, item.active && styles.active, item.done && !item.active && styles.done)} />
                 <Text className={styles.tlTitle}>{item.title}</Text>
                 {item.time && <Text className={styles.tlTime}>{item.time}</Text>}
@@ -401,7 +452,7 @@ const RectificationDetailPage: React.FC = () => {
         )}
       </ScrollView>
 
-      {getActionButtons()}
+      {renderActionButtons()}
     </View>
   );
 };

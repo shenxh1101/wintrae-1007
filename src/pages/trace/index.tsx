@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, Input, Button, Image, ScrollView } from '@tarojs/components';
 import Taro, { useRouter, useDidShow } from '@tarojs/taro';
 import classnames from 'classnames';
@@ -9,7 +9,7 @@ import { formatDate, formatDateTime, getInspectionStatusText } from '@/utils/for
 import StatusTag from '@/components/StatusTag';
 import EmptyState from '@/components/EmptyState';
 
-type ExpandedStage = 'material' | 'process' | 'finished' | 'rectification' | null;
+type ExpandedStage = 'material' | 'process' | 'finished' | 'rectification' | 'packaging' | 'outbound' | null;
 
 const TracePage: React.FC = () => {
   const router = useRouter();
@@ -17,14 +17,17 @@ const TracePage: React.FC = () => {
   const [traceInfo, setTraceInfo] = useState<any>(null);
   const [expandedStage, setExpandedStage] = useState<ExpandedStage>('material');
   const { getTraceInfo, addScanRecord } = useQualityStore();
+  const lastLoadedBatch = useRef('');
 
   const loadTraceInfo = (batch: string) => {
     if (!batch.trim()) return;
+    if (lastLoadedBatch.current === batch.trim() && traceInfo) return;
     Taro.showLoading({ title: '查询中...' });
     setTimeout(() => {
       const info = getTraceInfo(batch.trim());
       setTraceInfo(info);
       setExpandedStage('material');
+      lastLoadedBatch.current = batch.trim();
       if (info) {
         addScanRecord(batch.trim(), info.productName);
       }
@@ -32,9 +35,18 @@ const TracePage: React.FC = () => {
     }, 300);
   };
 
+  useDidShow(() => {
+    const paramBatch = router.params.batchNo || '';
+    if (paramBatch && paramBatch !== lastLoadedBatch.current) {
+      setBatchNo(paramBatch);
+      loadTraceInfo(paramBatch);
+    }
+  });
+
   useEffect(() => {
-    if (router.params.batchNo) {
-      loadTraceInfo(router.params.batchNo);
+    const paramBatch = router.params.batchNo || '';
+    if (paramBatch) {
+      loadTraceInfo(paramBatch);
     }
   }, [router.params.batchNo]);
 
@@ -46,6 +58,7 @@ const TracePage: React.FC = () => {
       });
       return;
     }
+    lastLoadedBatch.current = '';
     loadTraceInfo(batchNo);
   };
 
@@ -467,6 +480,112 @@ const TracePage: React.FC = () => {
                       ) : (
                         <View className={styles.addEntry} onClick={goToAddRectification}>
                           + 创建整改单
+                        </View>
+                      )}
+                    </View>
+                  )}
+                </View>
+              </View>
+
+              <View className={styles.timelineItem}>
+                <View
+                  className={classnames(
+                    styles.dot,
+                    traceInfo.packagingInfo ? styles.success : styles.info
+                  )}
+                ></View>
+                <View className={classnames(styles.stageCard, expandedStage === 'packaging' && styles.expanded)}>
+                  <View className={styles.stageHeader} onClick={() => toggleStage('packaging')}>
+                    <View className={styles.stageIcon}>📦</View>
+                    <View className={styles.stageInfo}>
+                      <Text className={styles.stageTitle}>包装信息</Text>
+                      <Text className={styles.stageDesc}>
+                        {traceInfo.packagingInfo ? traceInfo.packagingInfo.packageType : '未包装'}
+                      </Text>
+                    </View>
+                    <Text className={classnames(styles.expandIcon, expandedStage === 'packaging' && styles.expanded)}>▼</Text>
+                  </View>
+                  {expandedStage === 'packaging' && (
+                    <View className={styles.stageContent}>
+                      {traceInfo.packagingInfo ? (
+                        <View className={styles.contentSection}>
+                          <View className={styles.paramList}>
+                            <View className={styles.paramItem}>
+                              <Text className={styles.paramName}>包装类型</Text>
+                              <Text className={styles.paramValue}>{traceInfo.packagingInfo.packageType}</Text>
+                            </View>
+                            <View className={styles.paramItem}>
+                              <Text className={styles.paramName}>包装规格</Text>
+                              <Text className={styles.paramValue}>{traceInfo.packagingInfo.packageSpec}</Text>
+                            </View>
+                            <View className={styles.paramItem}>
+                              <Text className={styles.paramName}>包装时间</Text>
+                              <Text className={styles.paramValue}>{formatDateTime(traceInfo.packagingInfo.packageTime)}</Text>
+                            </View>
+                            <View className={styles.paramItem}>
+                              <Text className={styles.paramName}>操作人员</Text>
+                              <Text className={styles.paramValue}>{traceInfo.packagingInfo.operator}</Text>
+                            </View>
+                          </View>
+                        </View>
+                      ) : (
+                        <View className={styles.contentSection}>
+                          <Text style={{ fontSize: 24, color: '#86909C' }}>暂无包装信息</Text>
+                        </View>
+                      )}
+                    </View>
+                  )}
+                </View>
+              </View>
+
+              <View className={styles.timelineItem}>
+                <View
+                  className={classnames(
+                    styles.dot,
+                    traceInfo.outboundInfo ? styles.success : styles.info
+                  )}
+                ></View>
+                <View className={classnames(styles.stageCard, expandedStage === 'outbound' && styles.expanded)}>
+                  <View className={styles.stageHeader} onClick={() => toggleStage('outbound')}>
+                    <View className={styles.stageIcon}>🚚</View>
+                    <View className={styles.stageInfo}>
+                      <Text className={styles.stageTitle}>出库信息</Text>
+                      <Text className={styles.stageDesc}>
+                        {traceInfo.outboundInfo ? `${traceInfo.outboundInfo.destination} · ${traceInfo.outboundInfo.quantity}箱` : '未出库'}
+                      </Text>
+                    </View>
+                    <Text className={classnames(styles.expandIcon, expandedStage === 'outbound' && styles.expanded)}>▼</Text>
+                  </View>
+                  {expandedStage === 'outbound' && (
+                    <View className={styles.stageContent}>
+                      {traceInfo.outboundInfo ? (
+                        <View className={styles.contentSection}>
+                          <View className={styles.paramList}>
+                            <View className={styles.paramItem}>
+                              <Text className={styles.paramName}>出库单号</Text>
+                              <Text className={styles.paramValue}>{traceInfo.outboundInfo.outboundNo}</Text>
+                            </View>
+                            <View className={styles.paramItem}>
+                              <Text className={styles.paramName}>出库时间</Text>
+                              <Text className={styles.paramValue}>{formatDateTime(traceInfo.outboundInfo.outboundTime)}</Text>
+                            </View>
+                            <View className={styles.paramItem}>
+                              <Text className={styles.paramName}>目的地</Text>
+                              <Text className={styles.paramValue}>{traceInfo.outboundInfo.destination}</Text>
+                            </View>
+                            <View className={styles.paramItem}>
+                              <Text className={styles.paramName}>收货人</Text>
+                              <Text className={styles.paramValue}>{traceInfo.outboundInfo.receiver}</Text>
+                            </View>
+                            <View className={styles.paramItem}>
+                              <Text className={styles.paramName}>出库数量</Text>
+                              <Text className={styles.paramValue}>{traceInfo.outboundInfo.quantity} 箱</Text>
+                            </View>
+                          </View>
+                        </View>
+                      ) : (
+                        <View className={styles.contentSection}>
+                          <Text style={{ fontSize: 24, color: '#86909C' }}>暂未出库</Text>
                         </View>
                       )}
                     </View>

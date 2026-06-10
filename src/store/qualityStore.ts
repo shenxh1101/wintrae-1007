@@ -37,6 +37,21 @@ interface QualityState {
   getTraceInfo: (batchNo: string) => any;
 }
 
+const packagingData: Record<string, { packageType: string; packageSpec: string; packageTime: string; operator: string }> = {
+  'B202406100123': { packageType: '纸盒装', packageSpec: '250g/盒 × 24盒/箱', packageTime: '2024-06-10T18:00:00.000Z', operator: '钱包装' },
+  'B202406090088': { packageType: '纸盒装', packageSpec: '200g/盒 × 24盒/箱', packageTime: '2024-06-09T18:30:00.000Z', operator: '孙包装' },
+  'B202406080056': { packageType: '利乐包', packageSpec: '250ml/盒 × 24盒/箱', packageTime: '2024-06-08T17:30:00.000Z', operator: '钱包装' },
+  'B202406070101': { packageType: '利乐包', packageSpec: '250ml/盒 × 24盒/箱', packageTime: '2024-06-07T17:30:00.000Z', operator: '赵包装' },
+  'B202406070102': { packageType: '塑料瓶装', packageSpec: '300ml/瓶 × 24瓶/箱', packageTime: '2024-06-07T16:00:00.000Z', operator: '孙包装' }
+};
+
+const outboundData: Record<string, { outboundNo: string; outboundTime: string; destination: string; receiver: string; quantity: number }> = {
+  'B202406100123': { outboundNo: 'CK20240610001', outboundTime: '2024-06-11T08:30:00.000Z', destination: '上海家乐福超市', receiver: '王经理', quantity: 200 },
+  'B202406090088': { outboundNo: 'CK20240609002', outboundTime: '2024-06-10T09:00:00.000Z', destination: '北京物美超市', receiver: '刘经理', quantity: 150 },
+  'B202406070101': { outboundNo: 'CK20240607001', outboundTime: '2024-06-08T08:00:00.000Z', destination: '广州永辉超市', receiver: '陈经理', quantity: 300 },
+  'B202406070102': { outboundNo: 'CK20240607003', outboundTime: '2024-06-08T10:00:00.000Z', destination: '深圳华润万家', receiver: '张经理', quantity: 120 }
+};
+
 const productNames: Record<string, string> = {
   'B202406100123': '原味酸奶',
   'B202406090088': '草莓酸奶',
@@ -153,7 +168,8 @@ export const useQualityStore = create<QualityState>((set, get) => ({
   },
 
   getFinishedByBatch: (batchNo) => {
-    return get().finishedInspectionList.find(f => f.batchNo === batchNo);
+    const list = get().finishedInspectionList.filter(f => f.batchNo === batchNo);
+    return list.length > 0 ? list[0] : undefined;
   },
 
   getRectificationByBatch: (batchNo) => {
@@ -165,8 +181,10 @@ export const useQualityStore = create<QualityState>((set, get) => ({
     const processList = get().getProcessByBatch(batchNo);
     const finished = get().getFinishedByBatch(batchNo);
     const rectifications = get().getRectificationByBatch(batchNo);
+    const packaging = packagingData[batchNo];
+    const outbound = outboundData[batchNo];
 
-    if (acceptance.length === 0 && processList.length === 0 && !finished) {
+    if (acceptance.length === 0 && processList.length === 0 && !finished && !packaging && !outbound) {
       return null;
     }
 
@@ -178,7 +196,7 @@ export const useQualityStore = create<QualityState>((set, get) => ({
     return {
       batchNo,
       productName,
-      productSpec: finished?.productName ? '标准包装' : '标准规格',
+      productSpec: finished?.productSpec || (finished?.productName ? '标准包装' : '标准规格'),
       productionDate: finished?.inspectionTime
         ? new Date(finished.inspectionTime).toISOString().split('T')[0]
         : acceptance[0]?.arrivalTime
@@ -189,13 +207,8 @@ export const useQualityStore = create<QualityState>((set, get) => ({
       processInspections: processList,
       finishedInspection: finished,
       rectifications,
-      packagingInfo: finished ? {
-        packageType: '盒装',
-        packageSpec: '标准规格',
-        packageTime: finished.inspectionTime,
-        operator: '自动包装线'
-      } : undefined,
-      outboundInfo: undefined
+      packagingInfo: packaging,
+      outboundInfo: outbound
     };
   }
 }));
