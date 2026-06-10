@@ -1,0 +1,190 @@
+@use '@/styles/variables.scss' as *;
+
+.page {
+  min-height: 100vh;
+  padding-bottom: 120rpx;
+}
+
+.header {
+  padding: $spacing-xl $page-padding $spacing-lg;
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+  color: $color-text-white;
+
+  .title {
+    font-size: $font-size-xxl;
+    font-weight: $font-weight-bold;
+    margin-bottom: $spacing-sm;
+  }
+
+  .subtitle {
+    font-size: $font-size-sm;
+    opacity: 0.9;
+  }
+}
+
+.scanSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: $spacing-xl $page-padding;
+  margin-top: -60rpx;
+}
+
+.scanBtn {
+  width: 360rpx;
+  height: 360rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: $color-text-white;
+  box-shadow: 0 12rpx 32rpx rgba(15, 198, 194, 0.4);
+  margin-bottom: $spacing-xl;
+  transition: all $transition-base;
+
+  &:active {
+    transform: scale(0.96);
+    opacity: 0.9;
+  }
+
+  .icon {
+    font-size: 100rpx;
+    margin-bottom: $spacing-md;
+  }
+
+  .text {
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+  }
+}
+
+.inputRow {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  width: 100%;
+  margin-bottom: $spacing-md;
+
+  .input {
+    flex: 1;
+    height: 80rpx;
+    background-color: $color-bg-card;
+    border-radius: $radius-md;
+    padding: 0 $spacing-lg;
+    font-size: $font-size-md;
+    border: 2rpx solid $color-border;
+  }
+
+  .btn {
+    @include button-reset;
+    height: 80rpx;
+    padding: 0 $spacing-xl;
+    border-radius: $radius-md;
+    background-color: $color-primary;
+    color: $color-text-white;
+    font-size: $font-size-md;
+    font-weight: $font-weight-medium;
+
+    &:active {
+      opacity: 0.8;
+    }
+  }
+}
+
+.quickActions {
+  display: flex;
+  justify-content: space-around;
+  width: 100%;
+  padding: $spacing-lg 0;
+}
+
+.quickItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $spacing-sm;
+
+  .iconBox {
+    width: 96rpx;
+    height: 96rpx;
+    border-radius: $radius-lg;
+    background-color: $color-primary-bg;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 44rpx;
+  }
+
+  .label {
+    font-size: $font-size-sm;
+    color: $color-text-secondary;
+  }
+
+  &:active {
+    opacity: 0.7;
+  }
+}
+
+.historySection {
+  padding: 0 $page-padding;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-md;
+
+  .title {
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    color: $color-text-primary;
+  }
+
+  .clearBtn {
+    font-size: $font-size-sm;
+    color: $color-text-tertiary;
+  }
+}
+
+.recordList {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.recordItem {
+  display: flex;
+  align-items: center;
+  padding: $spacing-lg;
+  background-color: $color-bg-card;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-card;
+
+  &:active {
+    background-color: $color-bg-hover;
+  }
+
+  .batchInfo {
+    flex: 1;
+
+    .batchNo {
+      font-size: $font-size-md;
+      font-weight: $font-weight-semibold;
+      color: $color-text-primary;
+      margin-bottom: $spacing-xs;
+    }
+
+    .productName {
+      font-size: $font-size-sm;
+      color: $color-text-secondary;
+    }
+  }
+
+  .scanTime {
+    font-size: $font-size-xs;
+    color: $color-text-tertiary;
+  }
+}

@@ -1,0 +1,40 @@
+@use '@/styles/variables.scss' as *;
+
+.card {
+  background-color: $color-bg-card;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-card;
+  margin-bottom: $spacing-md;
+  overflow: hidden;
+
+  .cardHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: $spacing-lg $spacing-lg $spacing-md;
+
+    .title {
+      font-size: $font-size-lg;
+      font-weight: $font-weight-semibold;
+      color: $color-text-primary;
+    }
+
+    .extra {
+      font-size: $font-size-sm;
+      color: $color-text-tertiary;
+    }
+  }
+
+  .cardBody {
+    padding: 0 $spacing-lg $spacing-lg;
+  }
+
+  .cardFooter {
+    padding: $spacing-md $spacing-lg;
+    border-top: 1rpx solid $color-divider;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: $spacing-md;
+  }
+}

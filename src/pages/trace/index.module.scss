@@ -1,0 +1,332 @@
+@use '@/styles/variables.scss' as *;
+
+.page {
+  min-height: 100vh;
+  padding-bottom: 120rpx;
+}
+
+.searchSection {
+  padding: $spacing-lg $page-padding;
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+}
+
+.searchRow {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+
+  .input {
+    flex: 1;
+    height: 80rpx;
+    background-color: rgba(255, 255, 255, 0.95);
+    border-radius: $radius-md;
+    padding: 0 $spacing-lg;
+    font-size: $font-size-md;
+  }
+
+  .btn {
+    @include button-reset;
+    height: 80rpx;
+    padding: 0 $spacing-xl;
+    border-radius: $radius-md;
+    background-color: $color-bg-card;
+    color: $color-primary;
+    font-size: $font-size-md;
+    font-weight: $font-weight-semibold;
+
+    &:active {
+      opacity: 0.9;
+    }
+  }
+}
+
+.quickSearch {
+  margin-top: $spacing-md;
+  display: flex;
+  gap: $spacing-sm;
+  flex-wrap: wrap;
+
+  .chip {
+    padding: $spacing-xs $spacing-md;
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: $radius-round;
+    font-size: $font-size-xs;
+    color: $color-text-white;
+
+    &:active {
+      opacity: 0.8;
+    }
+  }
+}
+
+.content {
+  padding: $spacing-md $page-padding;
+  margin-top: -20rpx;
+}
+
+.overviewCard {
+  background: linear-gradient(135deg, $color-primary-dark 0%, $color-primary 100%);
+  border-radius: $radius-lg;
+  padding: $spacing-xl;
+  color: $color-text-white;
+  margin-bottom: $spacing-md;
+  box-shadow: 0 8rpx 24rpx rgba(15, 198, 194, 0.3);
+
+  .productName {
+    font-size: $font-size-xxl;
+    font-weight: $font-weight-bold;
+    margin-bottom: $spacing-sm;
+  }
+
+  .batchNo {
+    font-size: $font-size-sm;
+    opacity: 0.9;
+    margin-bottom: $spacing-lg;
+  }
+
+  .infoGrid {
+    display: flex;
+    gap: $spacing-lg;
+
+    .infoItem {
+      flex: 1;
+
+      .label {
+        font-size: $font-size-xs;
+        opacity: 0.8;
+        margin-bottom: $spacing-xs;
+      }
+
+      .value {
+        font-size: $font-size-md;
+        font-weight: $font-weight-semibold;
+      }
+    }
+  }
+}
+
+.timeline {
+  position: relative;
+  padding-left: $spacing-xl;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 16rpx;
+  top: 20rpx;
+  bottom: 20rpx;
+  width: 4rpx;
+  background-color: $color-border;
+}
+
+.timelineItem {
+  position: relative;
+  margin-bottom: $spacing-md;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  .dot {
+    position: absolute;
+    left: -42rpx;
+    top: $spacing-lg;
+    width: 28rpx;
+    height: 28rpx;
+    border-radius: 50%;
+    background-color: $color-primary;
+    border: 4rpx solid $color-bg-card;
+    z-index: 1;
+
+    &.success {
+      background-color: $color-success;
+    }
+
+    &.error {
+      background-color: $color-error;
+    }
+
+    &.warning {
+      background-color: $color-warning;
+    }
+
+    &.info {
+      background-color: $color-info;
+    }
+  }
+}
+
+.stageCard {
+  background-color: $color-bg-card;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-card;
+  overflow: hidden;
+  transition: all $transition-base;
+
+  &.expanded {
+    box-shadow: $shadow-card-hover;
+  }
+}
+
+.stageHeader {
+  display: flex;
+  align-items: center;
+  padding: $spacing-lg;
+  cursor: pointer;
+
+  &:active {
+    background-color: $color-bg-hover;
+  }
+
+  .stageIcon {
+    width: 64rpx;
+    height: 64rpx;
+    border-radius: $radius-md;
+    background-color: $color-primary-bg;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32rpx;
+    margin-right: $spacing-md;
+    flex-shrink: 0;
+  }
+
+  .stageInfo {
+    flex: 1;
+
+    .stageTitle {
+      font-size: $font-size-md;
+      font-weight: $font-weight-semibold;
+      color: $color-text-primary;
+      margin-bottom: $spacing-xs;
+    }
+
+    .stageDesc {
+      font-size: $font-size-xs;
+      color: $color-text-tertiary;
+    }
+  }
+
+  .expandIcon {
+    font-size: $font-size-lg;
+    color: $color-text-tertiary;
+    transition: transform $transition-base;
+
+    &.expanded {
+      transform: rotate(180deg);
+    }
+  }
+}
+
+.stageContent {
+  padding: 0 $spacing-lg $spacing-lg;
+  border-top: 1rpx solid $color-divider;
+}
+
+.contentSection {
+  padding-top: $spacing-md;
+
+  .sectionTitle {
+    font-size: $font-size-sm;
+    font-weight: $font-weight-semibold;
+    color: $color-text-secondary;
+    margin-bottom: $spacing-sm;
+  }
+}
+
+.paramList {
+  background-color: $color-bg-page;
+  border-radius: $radius-md;
+  padding: $spacing-sm $spacing-md;
+}
+
+.paramItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $spacing-sm 0;
+  border-bottom: 1rpx solid $color-divider;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  .paramName {
+    font-size: $font-size-sm;
+    color: $color-text-secondary;
+  }
+
+  .paramValue {
+    font-size: $font-size-sm;
+    color: $color-text-primary;
+    font-weight: $font-weight-medium;
+    text-align: right;
+
+    &.fail {
+      color: $color-error;
+    }
+  }
+}
+
+.itemCard {
+  background-color: $color-bg-page;
+  border-radius: $radius-md;
+  padding: $spacing-md;
+  margin-bottom: $spacing-sm;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  .itemHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: $spacing-xs;
+
+    .itemName {
+      font-size: $font-size-sm;
+      font-weight: $font-weight-semibold;
+      color: $color-text-primary;
+    }
+  }
+
+  .itemDetail {
+    font-size: $font-size-xs;
+    color: $color-text-tertiary;
+    margin-bottom: $spacing-xs;
+  }
+
+  .itemResult {
+    font-size: $font-size-sm;
+    color: $color-success;
+    font-weight: $font-weight-medium;
+
+    &.fail {
+      color: $color-error;
+    }
+  }
+}
+
+.photoList {
+  display: flex;
+  gap: $spacing-sm;
+  flex-wrap: wrap;
+}
+
+.photoItem {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: $radius-sm;
+  overflow: hidden;
+
+  image {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.emptySearch {
+  padding: $spacing-xl * 2 0;
+}

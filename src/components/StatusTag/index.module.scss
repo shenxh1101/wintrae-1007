@@ -1,0 +1,48 @@
+@use '@/styles/variables.scss' as *;
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4rpx 16rpx;
+  border-radius: $radius-sm;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  line-height: 1.4;
+  white-space: nowrap;
+
+  &.success {
+    color: $color-success;
+    background-color: rgba(0, 180, 42, 0.1);
+  }
+
+  &.warning {
+    color: $color-warning;
+    background-color: rgba(255, 125, 0, 0.1);
+  }
+
+  &.error {
+    color: $color-error;
+    background-color: rgba(245, 63, 63, 0.1);
+  }
+
+  &.info {
+    color: $color-info;
+    background-color: rgba(22, 93, 255, 0.1);
+  }
+
+  &.primary {
+    color: $color-primary;
+    background-color: $color-primary-bg;
+  }
+
+  &.purple {
+    color: #722ED1;
+    background-color: rgba(114, 46, 209, 0.1);
+  }
+
+  &.gray {
+    color: $color-text-tertiary;
+    background-color: $color-bg-page;
+  }
+}
