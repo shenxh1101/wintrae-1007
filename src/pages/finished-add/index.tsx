@@ -5,6 +5,7 @@ import classnames from 'classnames';
 import styles from './index.module.scss';
 import { useQualityStore } from '@/store/qualityStore';
 import type { InspectionStatus } from '@/types/quality';
+import { judgeInspectionItem, type JudgeResult } from '@/utils/format';
 
 interface InspectionItemForm {
   name: string;
@@ -38,28 +39,22 @@ const FinishedAddPage: React.FC = () => {
     let qualified = 0;
     let unqualified = 0;
     let pending = 0;
+    let uncertain = 0;
     items.forEach(item => {
       if (!item.name.trim()) return;
       total++;
-      if (!item.result) {
-        pending++;
-        return;
-      }
-      const itemResult = getItemResult(item);
-      if (itemResult === 'qualified') {
-        qualified++;
-      } else if (itemResult === 'unqualified') {
-        unqualified++;
-      } else {
-        pending++;
-      }
+      const r = judgeInspectionItem(item.standard, item.result);
+      if (r === 'qualified') qualified++;
+      else if (r === 'unqualified') unqualified++;
+      else if (r === 'pending') pending++;
+      else uncertain++;
     });
-    return { total, qualified, unqualified, pending };
+    return { total, qualified, unqualified, pending, uncertain };
   }, [items]);
 
   const autoConclusion = useMemo((): InspectionStatus => {
     if (stats.unqualified > 0) return 'unqualified';
-    if (stats.pending > 0) return 'pending';
+    if (stats.pending > 0 || stats.uncertain > 0) return 'pending';
     if (stats.total > 0 && stats.qualified === stats.total) return 'qualified';
     return 'pending';
   }, [stats]);
@@ -92,29 +87,6 @@ const FinishedAddPage: React.FC = () => {
     setItems(prev => prev.filter((_, i) => i !== index));
   };
 
-  const getItemResult = (item: InspectionItemForm): 'qualified' | 'unqualified' | 'pending' => {
-    if (!item.result) return 'pending';
-    if (!item.standard) return 'qualified';
-    const resultNum = parseFloat(item.result);
-    if (isNaN(resultNum)) return 'qualified';
-    const standardMatch = item.standard.match(/([\d.]+)/);
-    if (!standardMatch) return 'qualified';
-    const stdNum = parseFloat(standardMatch[1]);
-    if (item.standard.includes('≤') || item.standard.includes('<=')) {
-      return resultNum <= stdNum ? 'qualified' : 'unqualified';
-    } else if (item.standard.includes('≥') || item.standard.includes('>=')) {
-      return resultNum >= stdNum ? 'qualified' : 'unqualified';
-    } else if (item.standard.includes('±')) {
-      const toleranceMatch = item.standard.match(/±\s*([\d.]+)/);
-      if (toleranceMatch) {
-        const tolerance = parseFloat(toleranceMatch[1]);
-        return Math.abs(resultNum - stdNum) <= tolerance ? 'qualified' : 'unqualified';
-      }
-      return 'qualified';
-    }
-    return 'qualified';
-  };
-
   const handleSubmit = () => {
     if (!form.productName.trim()) {
       Taro.showToast({ title: '请输入产品名称', icon: 'none' });
@@ -141,14 +113,17 @@ const FinishedAddPage: React.FC = () => {
       inspector: form.inspector,
       conclusion: autoConclusion,
       remark: form.remark,
-      items: validItems.map(item => ({
-        name: item.name.trim(),
-        standard: item.standard || '—',
-        result: item.result || '—',
-        unit: item.unit,
-        method: item.method || '—',
-        isQualified: getItemResult(item) === 'qualified'
-      }))
+      items: validItems.map(item => {
+        const judge = judgeInspectionItem(item.standard, item.result);
+        return {
+          name: item.name.trim(),
+          standard: item.standard || '—',
+          result: item.result || '—',
+          unit: item.unit,
+          method: item.method || '—',
+          isQualified: judge === 'qualified'
+        };
+      })
     });
 
     Taro.showToast({
@@ -248,7 +223,7 @@ const FinishedAddPage: React.FC = () => {
 
             <View className={styles.itemList}>
               {items.map((item, index) => {
-                const result = getItemResult(item);
+                const judge = judgeInspectionItem(item.standard, item.result);
                 return (
                   <View key={index} className={styles.itemRow}>
                     <View className={styles.itemHeader}>
@@ -265,7 +240,7 @@ const FinishedAddPage: React.FC = () => {
                         <Text className={styles.fieldLabel}>标准值</Text>
                         <Input
                           className={styles.fieldInput}
-                          placeholder="标准"
+                          placeholder="如≤10000、500±10、0~10"
                           value={item.standard}
                           onInput={(e) => handleItemChange(index, 'standard', e.detail.value)}
                         />
@@ -301,8 +276,14 @@ const FinishedAddPage: React.FC = () => {
                       </View>
                     </View>
                     {item.name && (
-                      <View className={classnames(styles.resultTag, styles[result])}>
-                        {result === 'pending' ? '未填写结果' : result === 'qualified' ? '✓ 合格' : '✗ 不合格'}
+                      <View className={classnames(styles.resultTag, styles[judge])}>
+                        {judge === 'pending'
+                          ? '⏳ 待检测'
+                          : judge === 'qualified'
+                            ? '✓ 合格'
+                            : judge === 'unqualified'
+                              ? '✗ 不合格'
+                              : '❔ 待判定'}
                       </View>
                     )}
                   </View>
@@ -323,6 +304,10 @@ const FinishedAddPage: React.FC = () => {
             <View className={classnames(styles.summaryItem, styles.error)}>
               <Text className={styles.num}>{stats.unqualified}</Text>
               <Text className={styles.label}>不合格</Text>
+            </View>
+            <View className={classnames(styles.summaryItem, styles.warning)}>
+              <Text className={styles.num}>{stats.pending + stats.uncertain}</Text>
+              <Text className={styles.label}>待检测</Text>
             </View>
           </View>
         </View>

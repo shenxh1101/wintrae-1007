@@ -155,8 +155,13 @@
     }
 
     &.pending {
-      background-color: $color-bg-page;
-      color: $color-text-tertiary;
+      background-color: rgba(255, 159, 67, 0.1);
+      color: $color-warning;
+    }
+
+    &.uncertain {
+      background-color: rgba(114, 46, 209, 0.1);
+      color: #722ED1;
     }
   }
 }
@@ -190,6 +195,10 @@
 
     &.error .num {
       color: $color-error;
+    }
+
+    &.warning .num {
+      color: $color-warning;
     }
   }
 }

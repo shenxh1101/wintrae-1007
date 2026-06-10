@@ -37,13 +37,29 @@ const TracePage: React.FC = () => {
     Taro.showLoading({ title: '查询中...' });
     setTimeout(() => {
       const info = getTraceInfo(batch.trim());
-      setTraceInfo(info);
+      if (info) {
+        setTraceInfo(info);
+        addScanRecord(batch.trim(), info.productName);
+      } else {
+        setTraceInfo({
+          batchNo: batch.trim(),
+          productName: '未录入产品',
+          productSpec: '—',
+          productionDate: new Date().toISOString(),
+          quantity: 0,
+          rawMaterials: [],
+          processInspections: [],
+          finishedInspection: null,
+          rectifications: [],
+          packagingInfo: null,
+          outboundInfo: null,
+          _isEmpty: true
+        });
+        addScanRecord(batch.trim(), '未录入产品');
+      }
       setExpandedStage('material');
       setExpandedReport('material');
       lastLoadedBatch.current = batch.trim();
-      if (info) {
-        addScanRecord(batch.trim(), info.productName);
-      }
       Taro.hideLoading();
     }, 300);
   };
@@ -250,6 +266,24 @@ const TracePage: React.FC = () => {
       lines.push('  （未抽检）');
     }
     lines.push('');
+
+    const recheckItems = traceInfo.finishedInspection?.items?.filter((it: any) => it.recheckResult) || [];
+    if (recheckItems.length > 0) {
+      lines.push('【3.1 复检对比汇总】');
+      let recheckPass = 0;
+      let recheckFail = 0;
+      recheckItems.forEach((it: any, i: number) => {
+        const finalOk = it.isRecheckQualified;
+        if (finalOk) recheckPass++; else recheckFail++;
+        const status = finalOk ? '✓ 已闭环' : (it.recheckResult ? '✗ 复检仍不合格' : '⏳ 待复检');
+        lines.push(`  ${i + 1}. ${it.name}`);
+        lines.push(`     初检：${it.result || '未填'} ${it.isQualified ? '✓' : '✗'}`);
+        lines.push(`     复检：${it.recheckResult}（${it.rechecker || '复检人'}）${it.isRecheckQualified ? '✓' : '✗'}`);
+        lines.push(`     状态：${status}`);
+      });
+      lines.push(`  小结：复检 ${recheckItems.length} 项，合格 ${recheckPass} 项，不合格 ${recheckFail} 项`);
+      lines.push('');
+    }
 
     lines.push(`【4. 问题整改】${traceInfo.rectifications?.length || 0} 条`);
     if (traceInfo.rectifications?.length) {

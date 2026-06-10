@@ -5,7 +5,12 @@ import classnames from 'classnames';
 import styles from './index.module.scss';
 import { useQualityStore } from '@/store/qualityStore';
 import type { FinishedProductInspection, InspectionStatus } from '@/types/quality';
-import { formatDateTime, getInspectionStatusText } from '@/utils/format';
+import {
+  formatDateTime,
+  getInspectionStatusText,
+  computeInspectionConclusion,
+  getItemFinalQualified
+} from '@/utils/format';
 import StatusTag from '@/components/StatusTag';
 import EmptyState from '@/components/EmptyState';
 
@@ -18,11 +23,6 @@ const filters: { key: FilterType; label: string }[] = [
   { key: 'unqualified', label: '不合格' }
 ];
 
-const getItemFinalQualified = (item: FinishedProductInspection['items'][number]): boolean => {
-  if (typeof item.isRecheckQualified === 'boolean') return item.isRecheckQualified;
-  return item.isQualified;
-};
-
 const FinishedPage: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const { finishedInspectionList } = useQualityStore();
@@ -34,23 +34,23 @@ const FinishedPage: React.FC = () => {
     let qualified = 0;
     const total = inspection.items.length;
     let hasRecheck = false;
+    let pendingOrUncertain = 0;
     inspection.items.forEach(it => {
       if (it.recheckResult) hasRecheck = true;
-      if (getItemFinalQualified(it)) qualified++;
+      if (getItemFinalQualified(it)) {
+        qualified++;
+      } else {
+        const finalResult = it.recheckResult || it.result || '';
+        if (!finalResult || /^[—\-–_·\.。]+$/.test(finalResult) || /^(未检|待检|待检测|未填写|未填|无结果|暂无)$/i.test(finalResult)) {
+          pendingOrUncertain++;
+        }
+      }
     });
-    return { qualified, total, allPass: qualified === total, hasRecheck };
+    return { qualified, total, allPass: qualified === total, hasRecheck, pendingOrUncertain };
   };
 
   const computeConclusion = (inspection: FinishedProductInspection): InspectionStatus => {
-    const finalItems = inspection.items.map(getItemFinalQualified);
-    const allPass = finalItems.every(x => x);
-    if (allPass) return 'qualified';
-    const anyFail = finalItems.some((ok, idx) => {
-      const it = inspection.items[idx];
-      return !ok && (it.result || it.recheckResult);
-    });
-    if (anyFail) return 'unqualified';
-    return 'pending';
+    return computeInspectionConclusion(inspection.items);
   };
 
   const filteredList = useMemo(() => {

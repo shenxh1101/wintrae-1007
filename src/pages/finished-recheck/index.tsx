@@ -5,7 +5,14 @@ import classnames from 'classnames';
 import styles from './index.module.scss';
 import { useQualityStore } from '@/store/qualityStore';
 import type { FinishedProductInspection, InspectionStatus } from '@/types/quality';
-import { formatDateTime, getInspectionStatusText } from '@/utils/format';
+import {
+  formatDateTime,
+  getInspectionStatusText,
+  judgeInspectionItem,
+  computeInspectionConclusion,
+  getItemFinalQualified,
+  type JudgeResult
+} from '@/utils/format';
 import StatusTag from '@/components/StatusTag';
 
 interface RecheckItemForm {
@@ -13,15 +20,12 @@ interface RecheckItemForm {
   name: string;
   standard: string;
   originalResult: string;
-  originalQualified: boolean;
+  originalJudge: JudgeResult;
   recheckResult: string;
   rechecker: string;
+  manualOverride?: boolean;
+  manualResult?: 'qualified' | 'unqualified' | '';
 }
-
-const getItemFinalQualified = (item: FinishedProductInspection['items'][number]): boolean => {
-  if (typeof item.isRecheckQualified === 'boolean') return item.isRecheckQualified;
-  return item.isQualified;
-};
 
 const FinishedRecheckPage: React.FC = () => {
   const router = useRouter();
@@ -46,42 +50,30 @@ const FinishedRecheckPage: React.FC = () => {
     const needRecheck: RecheckItemForm[] = [];
     found.items.forEach((it, idx) => {
       const finalOk = getItemFinalQualified(it);
-      if (!finalOk || !it.result || it.result === '—') {
+      const originalJudge = judgeInspectionItem(it.standard, it.result);
+      if (!finalOk || originalJudge === 'pending' || originalJudge === 'uncertain') {
         needRecheck.push({
           index: idx,
           name: it.name,
           standard: it.standard,
           originalResult: it.result,
-          originalQualified: it.isQualified,
+          originalJudge,
           recheckResult: it.recheckResult || '',
-          rechecker: it.rechecker || '李质检'
+          rechecker: it.rechecker || '李质检',
+          manualOverride: false,
+          manualResult: ''
         });
       }
     });
     setRecheckItems(needRecheck);
   });
 
-  const judgeResult = (standard: string, result: string): 'qualified' | 'unqualified' | 'pending' => {
-    if (!result) return 'pending';
-    if (!standard) return 'qualified';
-    const resultNum = parseFloat(result);
-    if (isNaN(resultNum)) return 'qualified';
-    const standardMatch = standard.match(/([\d.]+)/);
-    if (!standardMatch) return 'qualified';
-    const stdNum = parseFloat(standardMatch[1]);
-    if (standard.includes('≤') || standard.includes('<=')) {
-      return resultNum <= stdNum ? 'qualified' : 'unqualified';
-    } else if (standard.includes('≥') || standard.includes('>=')) {
-      return resultNum >= stdNum ? 'qualified' : 'unqualified';
-    } else if (standard.includes('±')) {
-      const toleranceMatch = standard.match(/±\s*([\d.]+)/);
-      if (toleranceMatch) {
-        const tolerance = parseFloat(toleranceMatch[1]);
-        return Math.abs(resultNum - stdNum) <= tolerance ? 'qualified' : 'unqualified';
-      }
-      return 'qualified';
+  const getItemDisplayJudge = (form: RecheckItemForm): JudgeResult => {
+    if (!form.recheckResult) return 'pending';
+    if (form.manualOverride && form.manualResult) {
+      return form.manualResult;
     }
-    return 'qualified';
+    return judgeInspectionItem(form.standard, form.recheckResult);
   };
 
   const handleItemChange = (formIdx: number, value: string) => {
@@ -100,17 +92,39 @@ const FinishedRecheckPage: React.FC = () => {
     });
   };
 
+  const handleToggleManual = (formIdx: number) => {
+    setRecheckItems(prev => {
+      const updated = [...prev];
+      const cur = updated[formIdx];
+      updated[formIdx] = {
+        ...cur,
+        manualOverride: !cur.manualOverride,
+        manualResult: !cur.manualOverride ? 'qualified' : ''
+      };
+      return updated;
+    });
+  };
+
+  const handleManualResultChange = (formIdx: number, result: 'qualified' | 'unqualified') => {
+    setRecheckItems(prev => {
+      const updated = [...prev];
+      updated[formIdx] = { ...updated[formIdx], manualResult: result };
+      return updated;
+    });
+  };
+
   const stats = useMemo(() => {
     let filled = 0;
     let pass = 0;
-    recheckItems.forEach(it => {
-      if (it.recheckResult) {
-        filled++;
-        const r = judgeResult(it.standard, it.recheckResult);
-        if (r === 'qualified') pass++;
-      }
+    let uncertain = 0;
+    recheckItems.forEach(form => {
+      if (!form.recheckResult) return;
+      filled++;
+      const r = getItemDisplayJudge(form);
+      if (r === 'qualified') pass++;
+      else if (r === 'uncertain') uncertain++;
     });
-    return { total: recheckItems.length, filled, pass };
+    return { total: recheckItems.length, filled, pass, uncertain };
   }, [recheckItems]);
 
   const handleSubmit = () => {
@@ -126,7 +140,7 @@ const FinishedRecheckPage: React.FC = () => {
 
     recheckItems.forEach(form => {
       if (!form.recheckResult) return;
-      const judge = judgeResult(form.standard, form.recheckResult);
+      const judge = getItemDisplayJudge(form);
       const isOk = judge === 'qualified';
       if (isOk) recheckPassCount++;
       newItems[form.index] = {
@@ -138,25 +152,7 @@ const FinishedRecheckPage: React.FC = () => {
       };
     });
 
-    const originalQualifiedCount = newItems.filter(i => i.isQualified).length;
-    const totalRecheckPass = newItems.filter(getItemFinalQualified).length;
-    const allPass = totalRecheckPass === newItems.length;
-    const anyFail = newItems.some(i => !getItemFinalQualified(i) && (i.result || i.recheckResult));
-    const anyPending = newItems.some(i => {
-      const finalOk = getItemFinalQualified(i);
-      if (finalOk) return false;
-      if (i.recheckResult) return false;
-      return !i.result || i.result === '—';
-    });
-
-    let newConclusion: InspectionStatus = record.conclusion;
-    if (allPass) {
-      newConclusion = 'qualified';
-    } else if (anyFail) {
-      newConclusion = 'unqualified';
-    } else if (anyPending) {
-      newConclusion = 'pending';
-    }
+    const newConclusion = computeInspectionConclusion(newItems);
 
     updateFinishedInspection(record.id, {
       items: newItems,
@@ -172,6 +168,13 @@ const FinishedRecheckPage: React.FC = () => {
     setTimeout(() => {
       Taro.navigateBack();
     }, 1500);
+  };
+
+  const judgeText = (j: JudgeResult): string => {
+    if (j === 'qualified') return '✓ 合格';
+    if (j === 'unqualified') return '✗ 不合格';
+    if (j === 'pending') return '⏳ 待检测';
+    return '❔ 待判定';
   };
 
   if (!record) {
@@ -222,17 +225,23 @@ const FinishedRecheckPage: React.FC = () => {
               <View className={styles.emptyState}>所有指标均已合格，无需复检</View>
             ) : (
               recheckItems.map((item, formIdx) => {
-                const preview = judgeResult(item.standard, item.recheckResult);
+                const preview = getItemDisplayJudge(item);
+                const autoJudge = judgeInspectionItem(item.standard, item.recheckResult);
+                const isUncertain = autoJudge === 'uncertain';
                 return (
                   <View
                     key={formIdx}
-                    className={classnames(styles.itemCard, item.recheckResult && preview === 'qualified' && styles.rechecked)}
+                    className={classnames(
+                      styles.itemCard,
+                      item.recheckResult && preview === 'qualified' && styles.rechecked,
+                      item.manualOverride && styles.manualMode
+                    )}
                   >
                     <View className={styles.itemHeader}>
                       <Text className={styles.itemName}>{item.name}</Text>
                       {item.recheckResult && (
                         <Text className={classnames(styles.previewTag, preview)}>
-                          {preview === 'qualified' ? '✓ 复检合格' : preview === 'unqualified' ? '✗ 复检不合格' : '待判定'}
+                          {item.manualOverride ? '（手动）' : ''}{judgeText(preview)}
                         </Text>
                       )}
                     </View>
@@ -240,10 +249,9 @@ const FinishedRecheckPage: React.FC = () => {
                       <Text>标准：{item.standard || '—'}</Text>
                     </View>
                     <View className={styles.originalResult}>
-                      <Text className={styles.label}>原检测值：</Text>
-                      <Text className={styles.value}>
-                        {item.originalResult || '未填写'}
-                        {item.originalQualified ? '（合格）' : '（不合格）'}
+                      <Text className={styles.label}>初检：</Text>
+                      <Text className={classnames(styles.value, item.originalJudge)}>
+                        {item.originalResult || '未填写'} · {judgeText(item.originalJudge)}
                       </Text>
                     </View>
                     <Text className={styles.fieldLabel}>复检检测值</Text>
@@ -253,6 +261,44 @@ const FinishedRecheckPage: React.FC = () => {
                       value={item.recheckResult}
                       onInput={(e) => handleItemChange(formIdx, e.detail.value)}
                     />
+                    {isUncertain && item.recheckResult && (
+                      <View className={styles.uncertainTip}>
+                        <Text className={styles.tipIcon}>💡</Text>
+                        <Text className={styles.tipText}>文字类指标系统无法自动判定，建议手动选择结果</Text>
+                      </View>
+                    )}
+                    <View className={styles.manualRow}>
+                      <Text
+                        className={classnames(styles.manualToggle, item.manualOverride && styles.active)}
+                        onClick={() => handleToggleManual(formIdx)}
+                      >
+                        {item.manualOverride ? '✓ 已开启手动判定' : '⚙ 手动判定'}
+                      </Text>
+                    </View>
+                    {item.manualOverride && (
+                      <View className={styles.manualOptions}>
+                        <View
+                          className={classnames(
+                            styles.manualOption,
+                            item.manualResult === 'qualified' && styles.active,
+                            styles.optPass
+                          )}
+                          onClick={() => handleManualResultChange(formIdx, 'qualified')}
+                        >
+                          <Text>✓ 判定合格</Text>
+                        </View>
+                        <View
+                          className={classnames(
+                            styles.manualOption,
+                            item.manualResult === 'unqualified' && styles.active,
+                            styles.optFail
+                          )}
+                          onClick={() => handleManualResultChange(formIdx, 'unqualified')}
+                        >
+                          <Text>✗ 判定不合格</Text>
+                        </View>
+                      </View>
+                    )}
                     <View className={styles.recheckerRow}>
                       <Text className={styles.label}>复检人：</Text>
                       <Input

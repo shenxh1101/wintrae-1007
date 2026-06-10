@@ -101,6 +101,103 @@
     font-size: $font-size-sm;
     font-weight: $font-weight-semibold;
     color: $color-error;
+
+    &.qualified {
+      color: $color-success;
+    }
+
+    &.pending {
+      color: $color-warning;
+    }
+
+    &.uncertain {
+      color: #722ED1;
+    }
+  }
+}
+
+.uncertainTip {
+  display: flex;
+  align-items: flex-start;
+  gap: $spacing-xs;
+  padding: $spacing-sm $spacing-md;
+  background-color: rgba(114, 46, 209, 0.08);
+  border-radius: $radius-xs;
+  margin-bottom: $spacing-md;
+
+  .tipIcon {
+    font-size: $font-size-sm;
+    flex-shrink: 0;
+  }
+
+  .tipText {
+    font-size: $font-size-xs;
+    color: #722ED1;
+    line-height: 1.5;
+  }
+}
+
+.manualRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: $spacing-sm;
+}
+
+.manualToggle {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-xs;
+  background-color: $color-bg-card;
+  border: 1rpx dashed $color-border;
+
+  &.active {
+    color: $color-primary;
+    background-color: $color-primary-bg;
+    border-color: $color-primary;
+    border-style: solid;
+  }
+
+  &:active {
+    opacity: 0.8;
+  }
+}
+
+.manualOptions {
+  display: flex;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-md;
+}
+
+.manualOption {
+  flex: 1;
+  text-align: center;
+  padding: $spacing-sm 0;
+  border-radius: $radius-sm;
+  font-size: $font-size-sm;
+  border: 2rpx solid $color-border;
+  color: $color-text-secondary;
+  background-color: $color-bg-card;
+  transition: all $transition-base;
+
+  &.active {
+    font-weight: $font-weight-semibold;
+  }
+
+  &.optPass.active {
+    border-color: $color-success;
+    background-color: rgba(0, 180, 42, 0.06);
+    color: $color-success;
+  }
+
+  &.optFail.active {
+    border-color: $color-error;
+    background-color: rgba(245, 63, 63, 0.06);
+    color: $color-error;
+  }
+
+  &:active {
+    opacity: 0.85;
   }
 }
 
@@ -168,6 +265,15 @@
     color: $color-warning;
     background-color: rgba(255, 159, 67, 0.1);
   }
+
+  &.uncertain {
+    color: #722ED1;
+    background-color: rgba(114, 46, 209, 0.1);
+  }
+}
+
+.itemCard.manualMode {
+  border-left-color: #722ED1;
 }
 
 .emptyState {
